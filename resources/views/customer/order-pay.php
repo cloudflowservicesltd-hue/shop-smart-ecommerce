@@ -216,6 +216,7 @@ async function processMpesaPay() {
     const formData = new FormData();
     formData.append('payment_method', 'mpesa');
     formData.append('mpesa_phone', phone);
+    formData.append('amount', '<?= (float)$order['total'] ?>');
 
     try {
         const resp = await fetch('/order/pay/' + orderId, {
@@ -277,6 +278,7 @@ async function initiatePay(method) {
 
     const formData = new FormData();
     formData.append('payment_method', method);
+    formData.append('amount', '<?= (float)$order['total'] ?>');
 
     try {
         const resp = await fetch('/order/pay/' + orderId, {

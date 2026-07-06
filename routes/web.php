@@ -1026,8 +1026,15 @@ $router->post('/payment/initiate', function() use ($createOrderFromCart, $getPay
     }
 
     $orderId = $result['order_id'];
-    $orderTotal = $result['total'];
+    $orderTotal = (float)($result['total'] ?? 0);
     $orderNum = $result['order_number'];
+
+    // Validate order total
+    if ($orderTotal <= 0) {
+        $markFailed($orderId, 'Invalid order total: ' . $orderTotal);
+        echo json_encode(['success' => false, 'message' => 'Invalid order total. Please contact support.']);
+        return;
+    }
 
     // Initiate based on payment method
     switch ($paymentMethod) {
@@ -1144,7 +1151,7 @@ $router->post('/payment/initiate', function() use ($createOrderFromCart, $getPay
                     'last_name' => explode(' ', Session::get('checkout_shipping')['name'] ?? 'Customer')[1] ?? '',
                     'email' => Session::get('checkout_shipping')['email'] ?? '',
                     'phone_number' => preg_replace('/[^0-9]/', '', Session::get('checkout_shipping')['phone'] ?? ''),
-                    'amount' => round($orderTotal),
+                    'amount' => round($orderTotal, 2),
                     'currency' => 'KES',
                     'api_ref' => $orderNum,
                     'redirect_url' => (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/payment/intasend/callback?order_id=' . $orderId,
@@ -1406,9 +1413,24 @@ $router->post('/order/pay/{id}', function($id) use ($getPayPalRate) {
     if ($order['payment_status'] !== 'pending') { echo json_encode(['success' => false, 'message' => 'This order is not pending payment']); return; }
 
     $orderId = $order['id'];
-    $orderTotal = $order['total'];
+    $orderTotal = (float)($order['total'] ?? 0);
     $orderNum = $order['order_number'];
     $paymentMethod = Request::post('payment_method', $order['payment_method'] ?? 'mpesa');
+
+    // Validate order total — use order's DB total as source of truth
+    if ($orderTotal <= 0) {
+        echo json_encode(['success' => false, 'message' => 'Invalid order amount. Please contact support.']);
+        return;
+    }
+
+    // If frontend sends an amount, validate it matches (within 1 KES tolerance for rounding)
+    $sentAmount = (float)(Request::post('amount', 0));
+    if ($sentAmount > 0 && abs($sentAmount - $orderTotal) > 1) {
+        @file_put_contents(ROOT_PATH . '/storage/logs/payment-amount-warn.log',
+            date('Y-m-d H:i:s') . " | ORDER_PAY AMOUNT_MISMATCH | order_id={$orderId} | sent={$sentAmount} | db_total={$orderTotal} | method={$paymentMethod}\n",
+            FILE_APPEND);
+    }
+    // Always use the order's DB total as the authoritative amount
 
     // Helper: mark order as failed
     $markFailed = function($orderId, $reason = '') {
