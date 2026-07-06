@@ -109,9 +109,15 @@ class Router
 
                 if (is_string($route['handler']) && str_contains($route['handler'], '@')) {
                     [$controller, $action] = explode('@', $route['handler'], 2);
-                    $controllerFile = (defined('ROOT_PATH') ? ROOT_PATH : dirname(__DIR__, 2)) . "/app/Controllers/{$controller}.php";
+                    $basePath = defined('ROOT_PATH') ? ROOT_PATH : dirname(__DIR__, 2);
+                    $controllerFile = $basePath . "/app/Controllers/{$controller}.php";
 
                     if (file_exists($controllerFile)) {
+                        // Always load BaseController first so child controllers can extend it
+                        $baseFile = $basePath . "/app/Controllers/BaseController.php";
+                        if (file_exists($baseFile) && !class_exists('BaseController')) {
+                            require_once $baseFile;
+                        }
                         require_once $controllerFile;
                         if (!class_exists($controller)) {
                             http_response_code(500);
