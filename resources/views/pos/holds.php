@@ -151,7 +151,7 @@ $storeName = 'ShopSmart';
             gridEl.classList.add('hidden');
 
             try {
-                const res = await fetch('/api/pos/holds.php', {
+                const res = await fetch('/api/pos/holds', {
                     headers: { 'Accept': 'application/json' }
                 });
 
@@ -306,7 +306,7 @@ $storeName = 'ShopSmart';
             btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full spinner"></div><span>Restoring...</span>';
 
             try {
-                const res = await fetch(`/api/pos/holds/restore.php/${id}`, {
+                const res = await fetch(`/api/pos/holds/restore/${id}`, {
                     method: 'POST',
                     headers: { 'Accept': 'application/json' }
                 });
@@ -347,7 +347,7 @@ $storeName = 'ShopSmart';
             btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full spinner"></div><span>Deleting...</span>';
 
             try {
-                const res = await fetch(`/api/pos/holds.php/${deleteTargetId}`, {
+                const res = await fetch(`/api/pos/holds/${deleteTargetId}`, {
                     method: 'DELETE',
                     headers: { 'Accept': 'application/json' }
                 });

@@ -260,10 +260,44 @@ $router->post('/api/webhooks/mpesa', 'WebhookController@mpesa');
 $router->post('/api/webhooks/stripe', 'WebhookController@stripe');
 $router->post('/api/webhooks/intasend', 'WebhookController@intasend');
 
+// ============================================================
+// Settings API Routes (Controller)
+// ============================================================
+$router->get('/api/settings', 'SettingsController@publicSettings');
 
 // ============================================================
 // Public / Customer Routes
 // ============================================================
+
+// Helper: get store name from DB (reused across page titles)
+$getStoreName = function(): string {
+    try {
+        $row = Database::selectOne("SELECT value FROM settings WHERE `key` = 'store_name'");
+        return $row ? $row['value'] : 'ShopSmart';
+    } catch (\Throwable $e) {
+        return 'ShopSmart';
+    }
+};
+
+// Helper: get currency symbol from DB
+$getCurrencySymbol = function(): string {
+    try {
+        $row = Database::selectOne("SELECT value FROM settings WHERE `key` = 'currency_symbol'");
+        return $row && !empty($row['value']) ? $row['value'] : 'KSh';
+    } catch (\Throwable $e) {
+        return 'KSh';
+    }
+};
+
+// Helper: get shipping threshold from DB
+$getShippingThreshold = function(): float {
+    try {
+        $row = Database::selectOne("SELECT value FROM settings WHERE `key` = 'shipping_threshold'");
+        return $row && !empty($row['value']) ? (float)$row['value'] : 5000;
+    } catch (\Throwable $e) {
+        return 5000;
+    }
+};
 
 // Home
 $router->get('/', function() {
@@ -271,7 +305,8 @@ $router->get('/', function() {
     $newProducts = Database::select("SELECT p.*, (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = 1) as image, b.name as brand_name FROM products p LEFT JOIN brands b ON p.brand_id = b.id WHERE p.is_active = 1 AND (p.product_status IS NULL OR p.product_status IN ('active','out_of_stock_returning')) ORDER BY p.created_at DESC LIMIT 12");
     $categories = Database::select("SELECT c.*, (SELECT COUNT(*) FROM products WHERE category_id = c.id AND is_active = 1 AND (product_status IS NULL OR product_status IN ('active','out_of_stock_returning'))) as product_count FROM categories c WHERE c.parent_id IS NULL AND c.is_active = 1 ORDER BY c.sort_order LIMIT 8");
 
-    $pageTitle = 'ShopSmart - AI-Powered Ecommerce & POS';
+    $storeName = $getStoreName();
+    $pageTitle = $storeName . ' - AI-Powered Ecommerce & POS';
     ob_start();
     include ROOT_PATH . '/resources/views/customer/home.php';
     $content = ob_get_clean();
@@ -347,11 +382,12 @@ $router->get('/products', function() {
         $rm = $_GET; unset($rm['brand']); $removeFilterUrls['brand'] = $baseUrl . '?' . http_build_query($rm);
     }
     if ($minPrice !== '' || $maxPrice !== '') {
-        $activeFilters['price'] = 'KSh ' . number_format((float)$minPrice) . ' - KSh ' . number_format((float)$maxPrice);
+        $activeFilters['price'] = $getCurrencySymbol() . ' ' . number_format((float)$minPrice) . ' - ' . $getCurrencySymbol() . ' ' . number_format((float)$maxPrice);
         $rm = $_GET; unset($rm['min_price'], $rm['max_price']); $removeFilterUrls['price'] = $baseUrl . '?' . http_build_query($rm);
     }
 
-    $pageTitle = 'Products - ShopSmart';
+    $storeName = $getStoreName();
+    $pageTitle = 'Products - ' . $storeName;
     ob_start();
     include ROOT_PATH . '/resources/views/customer/products.php';
     $content = ob_get_clean();
@@ -374,7 +410,8 @@ $router->get('/product/{slug}', function($slug) {
     $reviewCount = (int)($ratingData['cnt'] ?? 0);
     $inWishlist = Auth::check() ? (bool)Database::selectOne("SELECT id FROM wishlists WHERE user_id = ? AND product_id = ?", [Auth::id(), $product['id']]) : false;
 
-    $pageTitle = $product['name'] . ' - ShopSmart';
+    $storeName = $getStoreName();
+    $pageTitle = $product['name'] . ' - ' . $storeName;
     ob_start();
     include ROOT_PATH . '/resources/views/customer/product-detail.php';
     $content = ob_get_clean();
@@ -437,12 +474,13 @@ $router->get('/category/{slug}', function($slug) {
         $rm = $_GET; unset($rm['brand']); $removeFilterUrls['brand'] = '/category/' . $slug . '?' . http_build_query($rm);
     }
     if ($minPrice !== '' || $maxPrice !== '') {
-        $label = 'Price: KSh ' . number_format((float)$minPrice) . ' - KSh ' . number_format((float)$maxPrice);
+        $label = 'Price: ' . $getCurrencySymbol() . ' ' . number_format((float)$minPrice) . ' - ' . $getCurrencySymbol() . ' ' . number_format((float)$maxPrice);
         $activeFilters['price'] = $label;
         $rm = $_GET; unset($rm['min_price'], $rm['max_price']); $removeFilterUrls['price'] = '/category/' . $slug . '?' . http_build_query($rm);
     }
 
-    $pageTitle = $currentCategory['name'] . ' - ShopSmart';
+    $storeName = $getStoreName();
+    $pageTitle = $currentCategory['name'] . ' - ' . $storeName;
     ob_start();
     include ROOT_PATH . '/resources/views/customer/products.php';
     $content = ob_get_clean();
@@ -452,7 +490,8 @@ $router->get('/category/{slug}', function($slug) {
 // All categories
 $router->get('/categories', function() {
     $categories = Database::select("SELECT c.*, (SELECT COUNT(*) FROM products WHERE category_id = c.id AND is_active = 1 AND (product_status IS NULL OR product_status IN ('active','out_of_stock_returning'))) as product_count FROM categories c WHERE c.parent_id IS NULL AND c.is_active = 1 ORDER BY sort_order");
-    $pageTitle = 'All Categories - ShopSmart';
+    $storeName = $getStoreName();
+    $pageTitle = 'All Categories - ' . $storeName;
     ob_start();
     include ROOT_PATH . '/resources/views/customer/categories.php';
     $content = ob_get_clean();
@@ -473,7 +512,8 @@ $router->get('/search', function() {
     $pagination = $paginated;
     $totalProducts = $paginated['total'];
     $query = $q;
-    $pageTitle = "Search: $q - ShopSmart";
+    $storeName = $getStoreName();
+    $pageTitle = "Search: $q - " . $storeName;
     ob_start();
     include ROOT_PATH . '/resources/views/customer/search.php';
     $content = ob_get_clean();
@@ -546,7 +586,8 @@ $router->get('/cart', function() {
     $tax = $afterDiscount * ($taxRate / 100);
     $total = $afterDiscount + $tax + $shippingCost;
 
-    $pageTitle = 'Shopping Cart - ShopSmart';
+    $storeName = $getStoreName();
+    $pageTitle = 'Shopping Cart - ' . $storeName;
     ob_start();
     include ROOT_PATH . '/resources/views/customer/cart.php';
     $content = ob_get_clean();
@@ -799,7 +840,8 @@ $createOrderFromCart = function() {
     try {
         if (class_exists('Mailer') && Mailer::isConfigured() && !empty($customerEmail)) {
             $storeName = Database::selectOne("SELECT value FROM settings WHERE `key` = 'store_name'")['value'] ?? 'ShopSmart';
-            $name = $customerName; $orderNumber = $orderNum; $total = $total; $currencySymbol = 'KSh';
+            $csRow = Database::selectOne("SELECT value FROM settings WHERE `key` = 'currency_symbol'");
+            $name = $customerName; $orderNumber = $orderNum; $total = $total; $currencySymbol = ($csRow && !empty($csRow['value'])) ? $csRow['value'] : 'KSh';
             $orderUrl = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . "/account/orders";
             $items = Database::select("SELECT product_name, quantity, price, total FROM order_items WHERE order_id = ?", [$orderId]);
             ob_start();
@@ -2028,7 +2070,8 @@ $router->post('/checkout/review', function() use ($loadCheckoutData) {
         $custEmail = $shipping['email'] ?? Auth::user()['email'] ?? '';
         if (class_exists('Mailer') && Mailer::isConfigured() && !empty($custEmail)) {
             $storeName = Database::selectOne("SELECT value FROM settings WHERE `key` = 'store_name'")['value'] ?? 'ShopSmart';
-            $name = $shipping['name'] ?? Auth::user()['name'] ?? 'Customer'; $orderNumber = $orderNum; $total = $total; $currencySymbol = 'KSh';
+            $csRow = Database::selectOne("SELECT value FROM settings WHERE `key` = 'currency_symbol'");
+            $name = $shipping['name'] ?? Auth::user()['name'] ?? 'Customer'; $orderNumber = $orderNum; $total = $total; $currencySymbol = ($csRow && !empty($csRow['value'])) ? $csRow['value'] : 'KSh';
             $orderUrl = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . "/account/orders";
             $items = Database::select("SELECT product_name, quantity, price, total FROM order_items WHERE order_id = ?", [$orderId]);
             ob_start();
@@ -2385,7 +2428,7 @@ $router->get('/orders/{orderNumber}/track', function($orderNumber) {
 $router->get('/account/profile', function() {
     if (!Auth::check()) Redirect::to('/login');
     $user = Auth::user();
-    $pageTitle = 'Edit Profile - ShopSmart';
+    $pageTitle = 'Edit Profile - ' . $getStoreName();
     ob_start();
     include ROOT_PATH . '/resources/views/customer/account-profile.php';
     $content = ob_get_clean();
@@ -2412,7 +2455,7 @@ $router->post('/account/profile', function() {
 $router->get('/account/reviews', function() {
     if (!Auth::check()) Redirect::to('/login');
     $reviews = Database::select("SELECT r.*, p.name as product_name, p.slug as product_slug, (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = 1) as product_image FROM reviews r JOIN products p ON r.product_id = p.id WHERE r.user_id = ? ORDER BY r.created_at DESC", [Auth::id()]);
-    $pageTitle = 'My Reviews - ShopSmart';
+    $pageTitle = 'My Reviews - ' . $getStoreName();
     ob_start();
     include ROOT_PATH . '/resources/views/customer/account-reviews.php';
     $content = ob_get_clean();
@@ -2458,7 +2501,7 @@ $router->post('/account/reviews/{id}/delete', function($id) {
 $router->get('/account/addresses', function() {
     if (!Auth::check()) Redirect::to('/login');
     $user = Auth::user();
-    $pageTitle = 'My Addresses - ShopSmart';
+    $pageTitle = 'My Addresses - ' . $getStoreName();
     ob_start();
     include ROOT_PATH . '/resources/views/customer/account-addresses.php';
     $content = ob_get_clean();
@@ -2532,7 +2575,7 @@ $router->post('/account/change-password', function() {
 $router->get('/page/{slug}', function($slug) {
     $page = Database::selectOne("SELECT * FROM pages WHERE slug = ? AND is_active = 1", [$slug]);
     if (!$page) { http_response_code(404); View::render('errors/404'); return; }
-    $pageTitle = $page['title'] . ' - ShopSmart';
+    $pageTitle = $page['title'] . ' - ' . $getStoreName();
     ob_start();
     include ROOT_PATH . '/resources/views/customer/page.php';
     $content = ob_get_clean();
@@ -3737,7 +3780,7 @@ $router->group(['prefix' => 'admin', 'middleware' => 'admin'], function($router)
         }
 
         // General text fields
-        $fields = ['store_name','store_tagline','store_email','store_phone','store_address','currency','tax_rate','shipping_banner_text'];
+        $fields = ['store_name','store_tagline','store_email','store_phone','store_address','currency','currency_symbol','tax_rate','shipping_threshold','shipping_banner_text'];
         foreach ($fields as $f) {
             $upsert($f, Request::post($f, ''), 'general');
         }
@@ -4563,7 +4606,7 @@ $router->group(['prefix' => 'admin', 'middleware' => 'admin'], function($router)
     $router->get('/coupons', function() {
         $breadcrumbs = [['Coupons', '']];
         $coupons = Database::select("SELECT c.* FROM coupons c ORDER BY c.created_at DESC");
-        $pageTitle = 'Coupons - ShopSmart Admin';
+        $pageTitle = 'Coupons - ' . $getStoreName() . ' Admin';
         ob_start();
         include ROOT_PATH . '/resources/views/admin/coupons.php';
         $content = ob_get_clean();

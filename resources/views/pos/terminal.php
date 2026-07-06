@@ -4,6 +4,12 @@ try {
 } catch (\Throwable $e) {
     $taxRate = 16;
 }
+try {
+    $posCurrencySymbol = Database::selectOne("SELECT value FROM settings WHERE `key` = 'currency_symbol'")['value'] ?? 'KSh';
+    if (empty($posCurrencySymbol)) $posCurrencySymbol = 'KSh';
+} catch (\Throwable $e) {
+    $posCurrencySymbol = 'KSh';
+}
 $cart = Session::get('pos_cart', []);
 $cartTotal = array_sum(array_column($cart, 'subtotal'));
 $taxAmount = $cartTotal * ($taxRate / 100);
@@ -103,7 +109,7 @@ try {
                     <i data-lucide="coins" class="w-3.5 h-3.5 text-amber-500"></i>
                     <div>
                         <p class="text-[9px] text-amber-600/70 leading-none">Commission</p>
-                        <p class="text-xs font-bold text-amber-500" id="commBalance">KSh 0</p>
+                        <p class="text-xs font-bold text-amber-500" id="commBalance"><?= e($posCurrencySymbol) ?> 0</p>
                     </div>
                 </div>
             </div>
@@ -258,16 +264,16 @@ try {
             <div class="px-6 py-5 space-y-4">
                 <!-- Order Summary -->
                 <div class="bg-gray-50 rounded-xl p-4 space-y-2">
-                    <div class="flex justify-between text-sm"><span class="text-gray-500">Subtotal</span><span id="paySubtotal">KSh 0.00</span></div>
-                    <div class="flex justify-between text-sm"><span class="text-gray-500">Tax (<?= $taxRate ?>%)</span><span id="payTax">KSh 0.00</span></div>
-                    <div class="flex justify-between text-base font-bold border-t border-gray-200 pt-2"><span>Total Due</span><span id="payTotal" class="text-amber-600">KSh 0.00</span></div>
+                    <div class="flex justify-between text-sm"><span class="text-gray-500">Subtotal</span><span id="paySubtotal"><?= e($posCurrencySymbol) ?> 0.00</span></div>
+                    <div class="flex justify-between text-sm"><span class="text-gray-500">Tax (<?= $taxRate ?>%)</span><span id="payTax"><?= e($posCurrencySymbol) ?> 0.00</span></div>
+                    <div class="flex justify-between text-base font-bold border-t border-gray-200 pt-2"><span>Total Due</span><span id="payTotal" class="text-amber-600"><?= e($posCurrencySymbol) ?> 0.00</span></div>
                 </div>
 
                 <!-- CASH: Amount Received + Change -->
                 <div id="cashFields">
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">Amount Received</label>
                     <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">KSh</span>
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium"><?= e($posCurrencySymbol) ?></span>
                         <input type="number" id="amountReceived" step="0.01" min="0" placeholder="0.00" inputmode="decimal"
                             class="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl text-xl font-bold focus:outline-none focus:border-amber-500 text-right transition-colors"
                             oninput="calcChange()">
@@ -287,7 +293,7 @@ try {
                     <div id="changeDisplay" class="hidden mt-3 rounded-xl p-4 transition-all">
                         <div class="flex justify-between items-center">
                             <span class="text-sm text-gray-500">Change</span>
-                            <span id="changeAmount" class="text-2xl font-bold text-amber-600">KSh 0.00</span>
+                            <span id="changeAmount" class="text-2xl font-bold text-amber-600"><?= e($posCurrencySymbol) ?> 0.00</span>
                         </div>
                     </div>
                     <p id="shortfallMsg" class="hidden text-sm text-red-600 font-medium mt-2 flex items-center gap-1.5">
@@ -310,7 +316,7 @@ try {
                     <div class="bg-green-50 border border-green-200 rounded-xl p-3">
                         <div class="flex justify-between items-center">
                             <span class="text-sm text-green-700 font-medium">Amount to charge</span>
-                            <span id="stkAmountDisplay" class="text-lg font-bold text-green-700">KSh 0</span>
+                            <span id="stkAmountDisplay" class="text-lg font-bold text-green-700"><?= e($posCurrencySymbol) ?> 0</span>
                         </div>
                         <p class="text-xs text-green-600 mt-1">M-Pesa amounts are rounded to the nearest shilling</p>
                     </div>
@@ -411,7 +417,7 @@ try {
                 <div class="bg-gray-50 rounded-xl p-4">
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600" id="holdCartSummary">0 items</span>
-                        <span class="text-base font-bold text-amber-600" id="holdCartTotal">KSh 0</span>
+                        <span class="text-base font-bold text-amber-600" id="holdCartTotal"><?= e($posCurrencySymbol) ?> 0</span>
                     </div>
                 </div>
             </div>
@@ -730,6 +736,7 @@ try {
     let cart = <?= json_encode($cart) ?>;
     const taxRate = <?= $taxRate ?>;
     const storeName = <?= json_encode($storeName) ?>;
+        const currencySymbol = <?= json_encode($posCurrencySymbol) ?>;
     const storePhone = <?= json_encode($storePhone) ?>;
     const storeAddr = <?= json_encode($storeAddr) ?>;
     let currentPayMethod = 'cash';
@@ -742,7 +749,7 @@ try {
     function saveCart() {
         const fd = new FormData();
         fd.append('cart', JSON.stringify(cart));
-        posFetch('/api/pos/cart.php', { method: 'POST', body: fd, headers: apiHeaders() }).catch(function(err) {
+        posFetch('/api/pos/cart', { method: 'POST', body: fd, headers: apiHeaders() }).catch(function(err) {
             posLogToConsole('SAVE_CART_FAIL', { error: err.message });
         });
     }
@@ -755,7 +762,7 @@ try {
     }
 
     function fmt(n) {
-        return 'KSh ' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return currencySymbol + ' ' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -775,13 +782,13 @@ try {
         }
         container.innerHTML = '<div id="cartList">' + cart.map(function(item, i) {
             return '<div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">' +
-                '<div class="flex-1 min-w-0"><p class="text-xs font-medium truncate">' + item.name + '</p><p class="text-xs text-gray-500">KSh ' + item.price.toLocaleString() + '</p></div>' +
+                '<div class="flex-1 min-w-0"><p class="text-xs font-medium truncate">' + item.name + '</p><p class="text-xs text-gray-500">' + currencySymbol + ' ' + item.price.toLocaleString() + '</p></div>' +
                 '<div class="flex items-center gap-1">' +
                 '<button onclick="updateQty(' + i + ',-1)" class="w-6 h-6 bg-white border rounded text-xs hover:bg-gray-100">&minus;</button>' +
                 '<span class="w-6 text-center text-xs font-medium">' + item.qty + '</span>' +
                 '<button onclick="updateQty(' + i + ',1)" class="w-6 h-6 bg-white border rounded text-xs hover:bg-gray-100">+</button>' +
                 '</div>' +
-                '<span class="text-xs font-medium w-16 text-right">KSh ' + (item.price * item.qty).toLocaleString() + '</span>' +
+                '<span class="text-xs font-medium w-16 text-right">' + currencySymbol + ' ' + (item.price * item.qty).toLocaleString() + '</span>' +
                 '<button onclick="removeItem(' + i + ')" class="text-gray-400 hover:text-red-500"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>' +
                 '</div>';
         }).join('') + '</div>';
@@ -867,7 +874,7 @@ try {
                 stkBtn.innerHTML = '<i data-lucide="smartphone" class="w-4 h-4"></i> <span>Send STK Push</span>';
                 const mpesaAmt = Math.round(totals.total);
                 stkAmount = mpesaAmt;
-                document.getElementById('stkAmountDisplay').textContent = 'KSh ' + mpesaAmt.toLocaleString();
+                document.getElementById('stkAmountDisplay').textContent = currencySymbol + ' ' + mpesaAmt.toLocaleString();
             } else {
                 document.getElementById('digitalFields').classList.remove('hidden');
             }
@@ -960,11 +967,11 @@ try {
 
         var statusEl = document.getElementById('stkStatus');
         statusEl.classList.remove('hidden');
-        statusEl.innerHTML = '<div class="flex items-center gap-2 text-sm text-gray-500"><svg class="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" class="opacity-75" stroke-linecap="round"/></svg> Initiating STK push for KSh ' + amount.toLocaleString() + '...</div>';
+        statusEl.innerHTML = '<div class="flex items-center gap-2 text-sm text-gray-500"><svg class="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" class="opacity-75" stroke-linecap="round"/></svg> Initiating STK push for ' + currencySymbol + ' ' + amount.toLocaleString() + '...</div>';
 
         var stkEndpoint = currentPayMethod === 'cloudone'
-            ? '/api/pos/cloudone-stk-push.php'
-            : '/api/pos/stk-push.php';
+            ? '/api/pos/cloudone-stk-push'
+            : '/api/pos/stk-push';
 
         posFetch(stkEndpoint, {
             method: 'POST',
@@ -978,7 +985,7 @@ try {
                 stkOrderNum = orderNum;
                 document.getElementById('mpesaOptionBtns').classList.add('hidden');
                 document.getElementById('stkCodeEntry').classList.remove('hidden');
-                statusEl.innerHTML = '<div class="flex items-center gap-2 text-green-600 text-sm"><i data-lucide="check-circle" class="w-4 h-4"></i> STK push sent for <strong>KSh ' + stkAmount.toLocaleString() + '</strong> to ' + phone + '</div>';
+                statusEl.innerHTML = '<div class="flex items-center gap-2 text-green-600 text-sm"><i data-lucide="check-circle" class="w-4 h-4"></i> STK push sent for <strong>' + currencySymbol + ' ' + stkAmount.toLocaleString() + '</strong> to ' + phone + '</div>';
                 lucide.createIcons();
                 setTimeout(function() { var tc = document.getElementById('transactionCode'); if (tc) tc.focus(); }, 200);
             } else {
@@ -1123,7 +1130,7 @@ try {
 
             posLogToConsole('CHECKOUT_SENDING', { method: currentPayMethod, total: checkoutTotal, items: cart.length });
 
-            posFetch('/api/pos/checkout.php', {
+            posFetch('/api/pos/checkout', {
                 method: 'POST',
                 headers: apiHeaders(),
                 body: fd
@@ -1341,7 +1348,7 @@ try {
             fd.append('notes', notes);
             fd.append('customer_name', customerName);
 
-            posFetch('/api/pos/holds.php', {
+            posFetch('/api/pos/holds', {
                 method: 'POST',
                 headers: apiHeaders(),
                 body: fd
@@ -1374,7 +1381,7 @@ try {
     // HELD SALES
     // ═══════════════════════════════════════════════════════════════
     function loadHeldCount() {
-        posFetch('/api/pos/holds.php', { headers: apiHeaders() }).then(function(data) {
+        posFetch('/api/pos/holds', { headers: apiHeaders() }).then(function(data) {
             if (data.success && data.holds && data.holds.length > 0) {
                 document.getElementById('heldCount').textContent = data.holds.length;
                 document.getElementById('heldCount').classList.remove('hidden');
@@ -1392,7 +1399,7 @@ try {
             modal.classList.remove('hidden');
             var list = document.getElementById('heldList');
             list.innerHTML = '<div class="text-center py-8 text-gray-400"><svg class="animate-spin w-6 h-6 mx-auto mb-2" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" class="opacity-75" stroke-linecap="round"/></svg>Loading...</div>';
-            posFetch('/api/pos/holds.php', { headers: apiHeaders() }).then(function(data) {
+            posFetch('/api/pos/holds', { headers: apiHeaders() }).then(function(data) {
                 if (data.success && data.holds && data.holds.length > 0) {
                     list.innerHTML = data.holds.map(function(h) {
                         return '<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 hover:border-amber-300 transition-colors">' +
@@ -1401,7 +1408,7 @@ try {
                             '<span class="text-xs font-medium text-gray-900">' + (h.customer_name ? h.customer_name + ' &middot; ' : '') + (h.cashier_name || 'Unknown') + '</span>' +
                             '<span class="text-[10px] text-gray-400">' + h.created_at + '</span>' +
                             '</div>' +
-                            '<p class="text-xs text-gray-500">' + h.items_count + ' item(s) &middot; <span class="font-semibold text-amber-600">KSh ' + Number(h.total).toLocaleString() + '</span></p>' +
+                            '<p class="text-xs text-gray-500">' + h.items_count + ' item(s) &middot; <span class="font-semibold text-amber-600">' + currencySymbol + ' ' + Number(h.total).toLocaleString() + '</span></p>' +
                             (h.notes ? '<p class="text-[10px] text-gray-400 mt-0.5">' + h.notes + '</p>' : '') +
                             '</div>' +
                             '<div class="flex gap-1.5 shrink-0">' +
@@ -1430,7 +1437,7 @@ try {
     function closeHeldSales() { try { document.getElementById('heldModal').classList.add('hidden'); } catch(e) {} }
 
     function restoreHold(id) {
-        posFetch('/api/pos/holds/restore.php/' + id, { method: 'POST', headers: apiHeaders() }).then(function(data) {
+        posFetch('/api/pos/holds/restore/' + id, { method: 'POST', headers: apiHeaders() }).then(function(data) {
             if (data.success) {
                 cart = data.cart || [];
                 renderCart();
@@ -1450,7 +1457,7 @@ try {
 
     function deleteHold(id) {
         if (!confirm('Delete this held sale?')) return;
-        posFetch('/api/pos/holds.php/' + id, { method: 'DELETE', headers: apiHeaders() }).then(function(data) {
+        posFetch('/api/pos/holds/' + id, { method: 'DELETE', headers: apiHeaders() }).then(function(data) {
             if (data.success) { loadHeldCount(); openHeldSales(); }
         }).catch(function(e) {
             posLogToConsole('DELETE_HOLD_ERROR', { error: e.message });
@@ -1461,18 +1468,18 @@ try {
     // COMMISSION
     // ═══════════════════════════════════════════════════════════════
     function loadCommission() {
-        posFetch('/api/commissions/balance.php', { headers: apiHeaders() }).then(function(data) {
+        posFetch('/api/commissions/balance', { headers: apiHeaders() }).then(function(data) {
             if (data.success && (data.earned > 0 || data.pending > 0)) {
-                document.getElementById('commBalance').textContent = 'KSh ' + Number(data.pending).toLocaleString();
+                document.getElementById('commBalance').textContent = currencySymbol + ' ' + Number(data.pending).toLocaleString();
                 document.getElementById('commissionBadge').classList.remove('hidden');
             }
         }).catch(function(){});
     }
 
     function showCommissionDetail() {
-        posFetch('/api/commissions/balance.php', { headers: apiHeaders() }).then(function(data) {
+        posFetch('/api/commissions/balance', { headers: apiHeaders() }).then(function(data) {
             if (data.success) {
-                alert('Commission Summary:\n\nPending: KSh ' + Number(data.pending).toLocaleString() + '\nPaid: KSh ' + Number(data.paid).toLocaleString() + '\nTotal Earned: KSh ' + Number(data.earned).toLocaleString() + '\n\nView details in Admin > Commissions');
+                alert('Commission Summary:\n\nPending: ' + currencySymbol + ' ' + Number(data.pending).toLocaleString() + '\nPaid: ' + currencySymbol + ' ' + Number(data.paid).toLocaleString() + '\nTotal Earned: ' + currencySymbol + ' ' + Number(data.earned).toLocaleString() + '\n\nView details in Admin > Commissions');
             }
         }).catch(function(){});
     }
@@ -1483,7 +1490,7 @@ try {
     posLogToConsole('POS_TERMINAL_INIT', { cart_items: cart.length, pay_methods: posMethods.length });
 
     // Health check: verify API routing is working on page load
-    posFetch('/api/pos/health.php', { headers: apiHeaders() }).then(function(h) {
+    posFetch('/api/pos/health', { headers: apiHeaders() }).then(function(h) {
         if (h && h.success) {
             posLogToConsole('POS_HEALTH_OK', { auth: h.auth, user_id: h.user_id, role: h.user_role, session: h.session_id });
             if (!h.auth) {
@@ -1599,7 +1606,7 @@ try {
                 '<div class="flex items-center gap-1.5 mt-0.5">' + skuHtml + barcodeHtml + '</div>' +
                 '</div>' +
                 '<div class="text-right shrink-0">' +
-                '<p class="text-sm font-bold text-amber-600">KSh ' + Number(p.price).toLocaleString() + '</p>' +
+                '<p class="text-sm font-bold text-amber-600">' + currencySymbol + ' ' + Number(p.price).toLocaleString() + '</p>' +
                 '<p class="text-[10px] text-gray-400">Stock: ' + (p.stock_quantity || '—') + '</p>' +
                 '</div>' +
                 '<i data-lucide="plus-circle" class="w-5 h-5 text-gray-300 group-hover:text-amber-500 shrink-0"></i>' +
@@ -1642,7 +1649,7 @@ try {
 
         // If no local results, try API search
         if (results.length === 0 && ql.length >= 2) {
-            posFetch('/api/pos/products.php?search=' + encodeURIComponent(query), { headers: apiHeaders() }).then(function(apiProducts) {
+            posFetch('/api/pos/products?search=' + encodeURIComponent(query), { headers: apiHeaders() }).then(function(apiProducts) {
                 if (Array.isArray(apiProducts) && apiProducts.length > 0) {
                     // Merge into master list and show
                     apiProducts.forEach(function(p) {
@@ -1749,7 +1756,7 @@ try {
             if (event && event.target) {
                 event.target.className = 'pos-cat-btn px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap bg-amber-600 text-white';
             }
-            posFetch('/api/pos/products.php?category=' + catId, { headers: apiHeaders() }).then(function(products) {
+            posFetch('/api/pos/products?category=' + catId, { headers: apiHeaders() }).then(function(products) {
                 if (!Array.isArray(products)) return;
                 // Rebuild product index
                 _allProducts = products.map(function(p) {
@@ -1765,7 +1772,7 @@ try {
                         '</div>' +
                         '<p class="text-xs font-medium text-gray-900 truncate">' + p.name + '</p>' +
                         '<div class="flex items-center justify-between mt-1">' +
-                        '<span class="text-sm font-bold text-amber-600">KSh ' + Number(p.price).toLocaleString() + '</span>' +
+                        '<span class="text-sm font-bold text-amber-600">' + currencySymbol + ' ' + Number(p.price).toLocaleString() + '</span>' +
                         '<span class="text-[10px] text-gray-400">Stock: ' + p.stock_quantity + '</span>' +
                         '</div></button>';
                 }).join('');

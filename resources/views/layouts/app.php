@@ -14,6 +14,10 @@ $storeEmail = $siteSettings['store_email'] ?? 'info@shopsmart.co.ke';
 $storePhone = $siteSettings['store_phone'] ?? '+254 700 000 000';
 $storeAddress = $siteSettings['store_address'] ?? 'Kenyatta Avenue, Nairobi CBD, Kenya';
 
+// Currency & shipping from database
+$currencySymbol = !empty($siteSettings['currency_symbol']) ? $siteSettings['currency_symbol'] : 'KSh';
+$shippingThreshold = !empty($siteSettings['shipping_threshold']) ? (float)$siteSettings['shipping_threshold'] : 5000;
+
 // Color settings with defaults
 $primaryColor = $siteSettings['primary_color'] ?? '#d97706';
 $primaryHoverColor = $siteSettings['primary_hover_color'] ?? '#b45309';
@@ -165,7 +169,7 @@ $socialTk = $siteSettings['social_tiktok'] ?? '';
                     <a href="mailto:<?= e($storeEmail) ?>" class="flex items-center gap-1 hover:text-amber-300 transition-colors"><i data-lucide="mail" class="w-3 h-3"></i> <?= e($storeEmail) ?></a>
                 </div>
                 <div class="flex items-center gap-4">
-                    <span><?= e($siteSettings['shipping_banner_text'] ?? 'Free shipping on orders over KSh 5,000') ?></span>
+                    <span><?= e(!empty($siteSettings['shipping_banner_text']) ? $siteSettings['shipping_banner_text'] : 'Free shipping on orders over ' . $currencySymbol . ' ' . number_format($shippingThreshold)) ?></span>
                 </div>
             </div>
         </div>
