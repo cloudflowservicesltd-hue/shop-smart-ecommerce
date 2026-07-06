@@ -1,0 +1,1 @@
+<?php $_API_BASE_URI = '/api/commissions'; require __DIR__ . '/../router.php';

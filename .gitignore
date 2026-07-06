@@ -1,0 +1,95 @@
+# ============================================================
+# Large directories (111MB+) — EXCLUDE
+# ============================================================
+skills/
+upload/
+tool-results/
+vendor/
+node_modules/
+.next/
+
+# ============================================================
+# Logs & Temp — EXCLUDE
+# ============================================================
+storage/logs/
+logs/
+*.log
+error_log
+dev.log
+worklog.md
+
+# ============================================================
+# Media & Binary — EXCLUDE
+# ============================================================
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+*.bmp
+*.ico
+*.svg
+*.avif
+*.tiff
+*.tif
+
+# Archives
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.rar
+*.7z
+*.bz2
+
+# Documents
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.ppt
+*.pptx
+
+# Videos / Audio
+*.mp4
+*.mp3
+*.wav
+*.avi
+*.mov
+*.flv
+*.wmv
+*.ogg
+
+# Fonts
+*.ttf
+*.otf
+*.woff
+*.woff2
+*.eot
+
+# ============================================================
+# Non-PHP source files in skills/ (already excluded above)
+# ============================================================
+# If skills/ is re-added, also exclude:
+# *.py, *.html, *.css, *.js, *.ts, *.md
+
+# ============================================================
+# OS / IDE — EXCLUDE
+# ============================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# Build / cache
+*.cache
+*.tmp
+pos-check.png
+__pycache__/

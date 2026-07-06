@@ -1,0 +1,1 @@
+<?php $_API_BASE_URI = '/api/pos/products'; require __DIR__ . '/../router.php';

@@ -1,0 +1,1 @@
+<?php $_API_BASE_URI = '/api/webhooks'; require __DIR__ . '/../router.php';

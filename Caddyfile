@@ -1,0 +1,42 @@
+:81 {
+        @transform_port_query {
+                query XTransformPort=*
+        }
+
+        handle @transform_port_query {
+                reverse_proxy localhost:{query.XTransformPort} {
+                        header_up Host {host}
+                        header_up X-Forwarded-For {remote_host}
+                        header_up X-Forwarded-Proto {scheme}
+                        header_up X-Real-IP {remote_host}
+                }
+        }
+
+        root * /home/z/my-project/public
+
+        # Serve static files directly (CSS, JS, images, etc.) — but NOT .php files
+        @staticFiles {
+                file
+                not path *.php
+                not path /api/*
+        }
+        handle @staticFiles {
+                file_server
+        }
+
+        # PHP files: try the file, then index.php
+        @phpFiles path *.php
+        handle @phpFiles {
+                try_files {path} index.php
+                php_fastcgi unix//run/php/php-fpm.sock
+        }
+
+        # ALL other requests (including /api/*): rewrite to index.php
+        # This ensures the PHP router handles API endpoints, not Caddy's file_server
+        handle {
+                try_files {path} /index.php
+                php_fastcgi unix//run/php/php-fpm.sock
+        }
+
+        encode gzip
+}
