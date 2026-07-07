@@ -52,7 +52,7 @@
                         <!-- Sort Controls -->
                         <div class="flex flex-col items-center gap-0.5 shrink-0">
                             <?php if ($index > 0): ?>
-                                <a href="?action=move_up&id=<?= e($badge['id']) ?>&<?= csrf() ?>=1"
+                                <a href="?action=move_up&id=<?= e($badge['id']) ?>&_token=<?= e(csrf_token()) ?>"
                                    class="p-1 rounded text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
                                    title="Move Up">
                                     <i data-lucide="chevron-up" class="w-4 h-4"></i>
@@ -62,7 +62,7 @@
                             <?php endif; ?>
                             <span class="text-[10px] font-semibold text-gray-400 tabular-nums"><?= e($badge['sort_order'] ?? $index + 1) ?></span>
                             <?php if ($index < $total - 1): ?>
-                                <a href="?action=move_down&id=<?= e($badge['id']) ?>&<?= csrf() ?>=1"
+                                <a href="?action=move_down&id=<?= e($badge['id']) ?>&_token=<?= e(csrf_token()) ?>"
                                    class="p-1 rounded text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
                                    title="Move Down">
                                     <i data-lucide="chevron-down" class="w-4 h-4"></i>
