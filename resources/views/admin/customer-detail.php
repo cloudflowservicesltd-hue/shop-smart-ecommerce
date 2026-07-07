@@ -170,4 +170,52 @@ $paymentColors = ['paid'=>'text-amber-600','pending'=>'text-amber-600','failed'=
             </div>
         </div>
     </div>
+
+    <!-- Referral & Commission Info -->
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100">
+            <h2 class="font-heading font-semibold text-base text-gray-900 flex items-center gap-2">
+                <i data-lucide="users-round" class="w-5 h-5 text-amber-600"></i> Referral & Commission
+            </h2>
+        </div>
+        <div class="p-6">
+            <?php if (!empty($referredBy)): ?>
+            <div class="mb-4 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                <p class="text-xs text-blue-600 font-medium uppercase tracking-wide mb-1">Referred By</p>
+                <p class="text-sm font-medium text-gray-900"><?= e($referredBy['referrer_name'] ?? 'N/A') ?></p>
+                <p class="text-xs text-gray-500"><?= e($referredBy['referrer_email'] ?? '') ?> · Code: <?= e($referredBy['referral_code'] ?? '') ?></p>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($referralCode)): ?>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Referral Code</p>
+                    <p class="text-sm font-mono font-bold text-gray-900 mt-1"><?= e($referralCode) ?></p>
+                </div>
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Total Referrals</p>
+                    <p class="text-xl font-bold text-gray-900 mt-1"><?= (int)($referralStats['total_refs'] ?? 0) ?></p>
+                </div>
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Commission Earned</p>
+                    <p class="text-xl font-bold text-amber-600 mt-1"><?= formatMoney((float)($referralStats['total_earned'] ?? 0)) ?></p>
+                </div>
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Commission Paid</p>
+                    <p class="text-xl font-bold text-green-600 mt-1"><?= formatMoney((float)($referralStats['paid_out'] ?? 0)) ?></p>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Referral Link</label>
+                <div class="flex items-center gap-2">
+                    <input type="text" value="<?= e($referralLink) ?>" readonly class="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono bg-gray-50">
+                    <button onclick="navigator.clipboard.writeText('<?= e(addslashes($referralLink)) ?>');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',2000)" class="px-4 py-2 bg-amber-50 text-amber-700 rounded-lg text-sm font-medium hover:bg-amber-100 transition-colors shrink-0">Copy</button>
+                </div>
+            </div>
+            <?php else: ?>
+            <p class="text-sm text-gray-500">No referral code generated for this customer.</p>
+            <?php endif; ?>
+        </div>
+    </div>
 </div>

@@ -43,6 +43,22 @@ class CheckoutPageController extends BaseController
         $taxRate = (float)(Database::selectOne("SELECT value FROM settings WHERE `key` = 'tax_rate'")['value'] ?? 16);
         $shippingCost = 0;
 
+        // Calculate shipping cost based on selected city from session
+        $shipping = Session::get('checkout_shipping', []);
+        $selectedCity = $shipping['city'] ?? '';
+        if (!empty($selectedCity)) {
+            // Try the cities table first
+            $cityRow = Database::selectOne("SELECT shipping_cost FROM cities WHERE name = ? AND is_active = 1", [$selectedCity]);
+            if ($cityRow) {
+                $shippingCost = (float)$cityRow['shipping_cost'];
+            }
+            // Check free shipping threshold
+            $threshold = (float)(Database::selectOne("SELECT value FROM settings WHERE `key` = 'shipping_threshold'")['value'] ?? 0);
+            if ($threshold > 0 && $subtotal >= $threshold) {
+                $shippingCost = 0;
+            }
+        }
+
         // Coupon
         $couponDiscount = 0;
         $couponCode = Session::get('applied_coupon', null);

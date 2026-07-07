@@ -32,18 +32,22 @@ $finalPrice = $hasDiscount ? $product['discount_price'] : $product['price'];
     <div class="grid lg:grid-cols-2 gap-8 lg:gap-12">
         <!-- Image Gallery -->
         <div class="space-y-4">
-            <div class="relative aspect-square bg-gray-50 rounded-2xl overflow-hidden border border-gray-100" style="cursor:zoom-in">
+            <div class="relative aspect-square bg-gray-50 rounded-2xl overflow-hidden border border-gray-100" id="mainImageContainer" onclick="openLightbox(0)">
                 <?php if ($hasDiscount): ?>
                 <span class="absolute top-4 left-4 bg-red-500 text-white text-sm font-bold px-3 py-1.5 rounded-xl z-10">
                     -<?= number_format((1 - $product['discount_price'] / $product['price']) * 100, 0) ?>% OFF
                 </span>
                 <?php endif; ?>
-                <img id="mainImage" src="<?= e($primaryImage) ?>" alt="<?= e($product['name']) ?>" class="w-full h-full object-cover">
+                <div class="w-full h-full overflow-hidden">
+                    <img id="mainImage" src="<?= e($primaryImage) ?>" alt="<?= e($product['name']) ?>" class="w-full h-full object-cover transition-transform duration-300" style="transform-origin: var(--zoom-x, center) var(--zoom-y, center);"
+                         onmouseenter="this.style.transform='scale(2)'" onmouseleave="this.style.transform=''"
+                         onmousemove="this.style.setProperty('--zoom-x', (event.offsetX/this.offsetWidth*100)+'%'); this.style.setProperty('--zoom-y', (event.offsetY/this.offsetHeight*100)+'%');">
+                </div>
             </div>
             <?php if (count($images) > 1): ?>
             <div class="flex gap-3 overflow-x-auto pb-2">
-                <?php foreach ($images as $img): ?>
-                <button onclick="document.getElementById('mainImage').src='<?= e($img['image_path']) ?>'; document.querySelectorAll('.thumb-btn').forEach(b=>b.classList.remove('ring-2','ring-amber-500')); this.classList.add('ring-2','ring-amber-500');" 
+                <?php $imgIndex = 0; foreach ($images as $img): $imgIndex++; ?>
+                <button onclick="setMainImage('<?= e(addslashes($img['image_path'])) ?>', this); openLightbox(<?= $imgIndex - 1 ?>)"
                         class="thumb-btn w-20 h-20 shrink-0 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-amber-300 transition-colors <?= ($img['is_primary'] ?? 0) ? 'ring-2 ring-amber-500' : '' ?>">
                     <img src="<?= e($img['image_path']) ?>" alt="" class="w-full h-full object-cover">
                 </button>
@@ -389,6 +393,20 @@ $finalPrice = $hasDiscount ? $product['discount_price'] : $product['price'];
 </section>
 <?php endif; ?>
 
+<!-- Image Lightbox Modal -->
+<div id="imageLightbox" class="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center hidden" onclick="if(event.target===this)closeLightbox()">
+    <button onclick="closeLightbox()" class="absolute top-4 right-4 text-white/80 hover:text-white z-10 p-2">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+    <button onclick="lightboxPrev()" class="absolute left-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white z-10 p-2">
+        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </button>
+    <button onclick="lightboxNext()" class="absolute right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white z-10 p-2">
+        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    </button>
+    <img id="lightboxImage" src="" alt="" class="max-w-[90vw] max-h-[90vh] object-contain transition-transform duration-200" style="cursor:zoom-in" onclick="toggleLightboxZoom(this)">
+</div>
+
 <script>
 function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
@@ -459,48 +477,63 @@ function toggleWishlist(productId) {
     .finally(() => { btn.disabled = false; });
 }
 
-// Image Zoom Magnifier
-(function() {
-    const mainImg = document.getElementById('mainImage');
-    if (!mainImg) return;
-    const container = mainImg.parentElement;
-    
-    // Create zoom lens
-    const lens = document.createElement('div');
-    lens.style.cssText = 'position:absolute;width:120px;height:120px;border:2px solid rgba(217,119,6,0.5);border-radius:50%;cursor:none;display:none;pointer-events:none;z-index:10;background-repeat:no-repeat;';
-    container.style.position = 'relative';
-    container.appendChild(lens);
+// Image Lightbox
+const allProductImages = <?= json_encode(array_column($images ?? [], 'image_path')) ?>;
+let currentLightboxIndex = 0;
+let isLightboxZoomed = false;
 
-    mainImg.addEventListener('mouseenter', function() { lens.style.display = 'block'; });
-    mainImg.addEventListener('mouseleave', function() { lens.style.display = 'none'; });
-    mainImg.addEventListener('mousemove', function(e) {
-        const rect = mainImg.getBoundingClientRect();
-        let x = e.clientX - rect.left;
-        let y = e.clientY - rect.top;
-        
-        // Prevent lens from going outside image
-        let lx = x - 60;
-        let ly = y - 60;
-        if (lx < 0) lx = 0;
-        if (ly < 0) ly = 0;
-        if (lx > rect.width - 120) lx = rect.width - 120;
-        if (ly > rect.height - 120) ly = rect.height - 120;
-        
-        lens.style.left = lx + 'px';
-        lens.style.top = ly + 'px';
-        
-        // Zoom factor 2.5x
-        const zoomFactor = 2.5;
-        const bgW = rect.width * zoomFactor;
-        const bgH = rect.height * zoomFactor;
-        const bgX = -(x * zoomFactor - 60);
-        const bgY = -(y * zoomFactor - 60);
-        
-        lens.style.backgroundImage = 'url(' + mainImg.src + ')';
-        lens.style.backgroundSize = bgW + 'px ' + bgH + 'px';
-        lens.style.backgroundPosition = bgX + 'px ' + bgY + 'px';
-    });
-})();
+function openLightbox(index) {
+    if (!allProductImages.length) return;
+    currentLightboxIndex = index;
+    const lb = document.getElementById('imageLightbox');
+    const img = document.getElementById('lightboxImage');
+    img.src = allProductImages[index];
+    img.style.transform = '';
+    isLightboxZoomed = false;
+    lb.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+    document.getElementById('imageLightbox').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+function lightboxPrev() {
+    currentLightboxIndex = (currentLightboxIndex - 1 + allProductImages.length) % allProductImages.length;
+    document.getElementById('lightboxImage').src = allProductImages[currentLightboxIndex];
+    document.getElementById('lightboxImage').style.transform = '';
+    isLightboxZoomed = false;
+}
+
+function lightboxNext() {
+    currentLightboxIndex = (currentLightboxIndex + 1) % allProductImages.length;
+    document.getElementById('lightboxImage').src = allProductImages[currentLightboxIndex];
+    document.getElementById('lightboxImage').style.transform = '';
+    isLightboxZoomed = false;
+}
+
+function toggleLightboxZoom(img) {
+    isLightboxZoomed = !isLightboxZoomed;
+    img.style.transform = isLightboxZoomed ? 'scale(2)' : '';
+    img.style.cursor = isLightboxZoomed ? 'zoom-out' : 'zoom-in';
+}
+
+function setMainImage(src, btn) {
+    document.getElementById('mainImage').src = src;
+    document.querySelectorAll('.thumb-btn').forEach(b => b.classList.remove('ring-2', 'ring-amber-500'));
+    if (btn) btn.classList.add('ring-2', 'ring-amber-500');
+}
+
+// Keyboard navigation for lightbox
+document.addEventListener('keydown', function(e) {
+    const lb = document.getElementById('imageLightbox');
+    if (lb && !lb.classList.contains('hidden')) {
+        if (e.key === 'Escape') closeLightbox();
+        if (e.key === 'ArrowLeft') lightboxPrev();
+        if (e.key === 'ArrowRight') lightboxNext();
+    }
+});
 
 function showToast(msg, type) {
     const existing = document.querySelector('.toast-notification');

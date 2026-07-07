@@ -7,6 +7,21 @@ try {
     $db = Database::getConnection();
     try { $db->exec("ALTER TABLE `orders` ADD COLUMN `cashier_id` INT UNSIGNED DEFAULT NULL AFTER `is_pos`"); } catch (\Throwable $e) {}
     try { $db->exec("ALTER TABLE `orders` ADD COLUMN `referral_code` VARCHAR(50) DEFAULT NULL AFTER `cashier_id`"); } catch (\Throwable $e) {}
+    try { $db->exec("ALTER TABLE `users` ADD COLUMN `last_login` DATETIME DEFAULT NULL AFTER `updated_at`"); } catch (\Throwable $e) {}
+    try { $db->exec("ALTER TABLE `users` ADD COLUMN `referral_code` VARCHAR(50) DEFAULT NULL AFTER `country`"); } catch (\Throwable $e) {}
+    $db->exec("CREATE TABLE IF NOT EXISTS `referral_withdrawals` (
+        `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        `user_id` INT UNSIGNED NOT NULL,
+        `amount` DOUBLE NOT NULL DEFAULT 0,
+        `status` ENUM('pending','approved','rejected','paid') NOT NULL DEFAULT 'pending',
+        `payment_details` TEXT DEFAULT NULL,
+        `admin_notes` TEXT DEFAULT NULL,
+        `processed_at` DATETIME DEFAULT NULL,
+        `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX `idx_user_id` (`user_id`),
+        INDEX `idx_status` (`status`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     $db->exec("CREATE TABLE IF NOT EXISTS `pos_holds` (
         `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
         `user_id` INT UNSIGNED DEFAULT NULL,
@@ -38,6 +53,14 @@ try {
         `slug` VARCHAR(100) NOT NULL,
         `icon` VARCHAR(100) NOT NULL DEFAULT 'credit-card',
         `color` VARCHAR(50) NOT NULL DEFAULT 'gray',
+        `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+        `sort_order` INT NOT NULL DEFAULT 0,
+        `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $db->exec("CREATE TABLE IF NOT EXISTS `cities` (
+        `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        `name` VARCHAR(255) NOT NULL,
+        `shipping_cost` DOUBLE NOT NULL DEFAULT 0,
         `is_active` TINYINT(1) NOT NULL DEFAULT 1,
         `sort_order` INT NOT NULL DEFAULT 0,
         `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -102,10 +125,17 @@ try {
 
 // Track referral visits via ?ref=CODE
 $refCode = Request::query('ref', '');
-if ($refCode && !isset($_COOKIE['referral_code'])) {
-    $ref = Database::selectOne("SELECT * FROM referrals WHERE referral_code = ? AND referred_id IS NULL", [$refCode]);
+if ($refCode) {
+    $ref = Database::selectOne("SELECT * FROM referrals WHERE referral_code = ?", [$refCode]);
     if ($ref) {
-        setcookie('referral_code', $refCode, time() + 86400 * 30, '/');
+        // Save to both session and cookie
+        Session::set('referral_code', $refCode);
+        setcookie('referral_code', $refCode, time() + 86400 * 90, '/');
+        // If user is not logged in, redirect to register
+        if (!Auth::check()) {
+            Redirect::to('/register?ref=' . urlencode($refCode));
+            exit;
+        }
     }
 }
 
@@ -315,6 +345,9 @@ $router->get('/blog/{slug}', 'BlogController@show');
 $router->get('/page/{slug}', 'PageController@show');
 $router->post('/page/contact-us', 'PageController@contactSubmit');
 
+// Referral link redirect
+$router->get('/ref/{code}', 'ReferralController@handle');
+
 // Auth
 $router->get('/login', 'AuthController@showLogin');
 $router->post('/login', 'AuthController@login');
@@ -449,6 +482,8 @@ $router->group(['prefix' => 'admin', 'middleware' => 'admin'], function($router)
     // Settings
     $router->get('/settings', 'AdminSettingsController@index');
     $router->post('/settings/update', 'AdminSettingsController@update');
+    $router->get('/settings/cities', 'AdminSettingsController@cities');
+    $router->post('/settings/cities', 'AdminSettingsController@cities');
 
     // API Integrations
     $router->get('/api-integrations', 'AdminApiIntegrationController@index');

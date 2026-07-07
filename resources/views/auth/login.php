@@ -3,6 +3,7 @@ $loginLogo = Database::selectOne("SELECT value FROM settings WHERE `key` = 'logi
 $loginTitle = Database::selectOne("SELECT value FROM settings WHERE `key` = 'login_title'")['value'] ?? 'ShopSmart';
 $loginSubtitle = Database::selectOne("SELECT value FROM settings WHERE `key` = 'login_subtitle'")['value'] ?? 'AI-Powered Ecommerce & POS';
 $loginDescription = Database::selectOne("SELECT value FROM settings WHERE `key` = 'login_description'")['value'] ?? 'Complete business solution with intelligent marketing, real-time inventory, and seamless payment processing.';
+$loginBgColor = Database::selectOne("SELECT value FROM settings WHERE `key` = 'login_bg_color'")['value'] ?? '#b45309';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -20,7 +21,7 @@ $loginDescription = Database::selectOne("SELECT value FROM settings WHERE `key` 
 </head>
 <body class="bg-gray-50 min-h-screen flex">
     <!-- Left side (branding) -->
-    <div class="hidden lg:flex lg:w-1/2 bg-amber-700 p-12 flex-col justify-between text-white relative overflow-hidden">
+    <div class="hidden lg:flex lg:w-1/2 p-12 flex-col justify-between text-white relative overflow-hidden" style="background-color:<?= e($loginBgColor) ?>">
         <div class="absolute inset-0 opacity-10">
             <div class="absolute top-20 left-20 w-64 h-64 bg-white rounded-full blur-3xl"></div>
             <div class="absolute bottom-20 right-20 w-96 h-96 bg-amber-300 rounded-full blur-3xl"></div>

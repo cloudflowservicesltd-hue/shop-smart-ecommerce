@@ -23,6 +23,9 @@ class AccountController extends BaseController
             $myReferralLink = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/?ref=' . urlencode($myReferral['referral_code']);
         }
         $myReferralStats = Database::selectOne("SELECT COUNT(*) as total_refs, COALESCE(SUM(commission_amount),0) as total_earned, COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_amount ELSE 0 END),0) as total_paid FROM referrals WHERE referrer_id = ? AND referred_id IS NOT NULL", [$userId]);
+        $earned = (float)(Database::selectOne("SELECT COALESCE(SUM(amount),0) as total FROM commissions WHERE user_id = ? AND status = 'paid'", [$userId])['total'] ?? 0);
+        $pendingW = (float)(Database::selectOne("SELECT COALESCE(SUM(amount),0) as total FROM referral_withdrawals WHERE user_id = ? AND status IN ('pending','approved')", [$userId])['total'] ?? 0);
+        $commissionBalance = max(0, $earned - $pendingW);
         ob_start();
         include ROOT_PATH . '/resources/views/customer/account.php';
         $content = ob_get_clean();
@@ -38,23 +41,18 @@ class AccountController extends BaseController
         if (!Auth::check()) Redirect::to('/login');
         $userId = Auth::id();
 
-        // Referral link
         $myReferral = Database::selectOne("SELECT * FROM referrals WHERE referrer_id = ? AND referred_id IS NULL LIMIT 1", [$userId]);
         $myReferralLink = '';
         if ($myReferral) {
             $myReferralLink = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/?ref=' . urlencode($myReferral['referral_code']);
         }
 
-        // Stats
         $myReferralStats = Database::selectOne("SELECT COUNT(*) as total_refs, COALESCE(SUM(commission_amount),0) as total_earned, COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_amount ELSE 0 END),0) as total_paid FROM referrals WHERE referrer_id = ? AND referred_id IS NOT NULL", [$userId]);
         $earned = (float)(Database::selectOne("SELECT COALESCE(SUM(amount),0) as total FROM commissions WHERE user_id = ? AND status = 'paid'", [$userId])['total'] ?? 0);
         $pendingW = (float)(Database::selectOne("SELECT COALESCE(SUM(amount),0) as total FROM referral_withdrawals WHERE user_id = ? AND status IN ('pending','approved')", [$userId])['total'] ?? 0);
         $commissionBalance = max(0, $earned - $pendingW);
 
-        // Withdrawal history
         $withdrawals = Database::select("SELECT * FROM referral_withdrawals WHERE user_id = ? ORDER BY created_at DESC", [$userId]);
-
-        // Referral list (people referred)
         $referredUsers = Database::select("SELECT r.*, u.name as referred_name, u.email as referred_email, o.order_number, o.total as order_total FROM referrals r LEFT JOIN users u ON r.referred_id = u.id LEFT JOIN orders o ON o.referral_code = r.referral_code AND o.customer_id = r.referred_id WHERE r.referrer_id = ? AND r.referred_id IS NOT NULL ORDER BY r.created_at DESC", [$userId]);
 
         ob_start();
@@ -300,6 +298,39 @@ class AccountController extends BaseController
         include ROOT_PATH . '/resources/views/customer/change-password.php';
         $content = ob_get_clean();
         include ROOT_PATH . '/resources/views/layouts/app.php';
+    }
+
+    /**
+     * Request referral commission withdrawal.
+     * Route: POST /account/referral/withdraw
+     */
+    public function requestWithdrawal(): void
+    {
+        if (!Auth::check()) { http_response_code(401); echo json_encode(['error' => 'Login required']); return; }
+
+        header('Content-Type: application/json');
+        $amount = (float)(Request::post('amount', 0));
+        $paymentDetails = trim(Request::post('payment_details', ''));
+
+        if ($amount <= 0) { echo json_encode(['success' => false, 'error' => 'Invalid amount']); return; }
+
+        // Calculate balance
+        $userId = Auth::id();
+        $earned = (float)(Database::selectOne("SELECT COALESCE(SUM(amount),0) as total FROM commissions WHERE user_id = ? AND status = 'paid'", [$userId])['total'] ?? 0);
+        $pendingWithdrawals = (float)(Database::selectOne("SELECT COALESCE(SUM(amount),0) as total FROM referral_withdrawals WHERE user_id = ? AND status IN ('pending','approved')", [$userId])['total'] ?? 0);
+        $balance = $earned - $pendingWithdrawals;
+
+        if ($amount > $balance) { echo json_encode(['success' => false, 'error' => 'Amount exceeds available balance (' . formatMoney($balance) . ')']); return; }
+
+        Database::insert('referral_withdrawals', [
+            'user_id' => $userId,
+            'amount' => $amount,
+            'payment_details' => $paymentDetails,
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        echo json_encode(['success' => true, 'message' => 'Withdrawal request submitted successfully']);
     }
 
     /**

@@ -66,6 +66,7 @@
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Tax Rate (%)</label><input type="number" name="tax_rate" step="0.1" value="<?= e($settings['tax_rate'] ?? '16') ?>" class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm"></div>
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Free Shipping Threshold</label><input type="number" name="shipping_threshold" step="1" value="<?= e($settings['shipping_threshold'] ?? '5000') ?>" placeholder="e.g. 5000" class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm"></div>
                 <div class="sm:col-span-2"><label class="block text-sm font-medium text-gray-700 mb-1">Shipping Banner Text <span class="text-xs text-gray-400">(leave empty for auto-generated)</span></label><input type="text" name="shipping_banner_text" value="<?= e($settings['shipping_banner_text'] ?? '') ?>" placeholder="Leave empty for: Free shipping on orders over [threshold]" class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Category Circle Size</label><select name="category_circle_size" class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm"><option value="sm" <?= ($settings['category_circle_size'] ?? 'lg') === 'sm' ? 'selected' : '' ?>>Small (96px)</option><option value="md" <?= ($settings['category_circle_size'] ?? 'lg') === 'md' ? 'selected' : '' ?>>Medium (128px)</option><option value="lg" <?= ($settings['category_circle_size'] ?? 'lg') === 'lg' ? 'selected' : '' ?>>Large (160px)</option><option value="xl" <?= ($settings['category_circle_size'] ?? 'lg') === 'xl' ? 'selected' : '' ?>>Extra Large (192px)</option><option value="2xl" <?= ($settings['category_circle_size'] ?? 'lg') === '2xl' ? 'selected' : '' ?>>2X Large (224px)</option></select></div>
             </div>
         </div>
 
@@ -96,6 +97,14 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
                     <textarea name="login_description" rows="2" class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"><?= e(Database::selectOne("SELECT value FROM settings WHERE `key` = 'login_description'")['value'] ?? 'Complete business solution with intelligent marketing, real-time inventory, and seamless payment processing.') ?></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Login Sidebar Color</label>
+                    <div class="flex items-center gap-2">
+                        <input type="color" name="login_bg_color" value="<?= e($settings['login_bg_color'] ?? '#b45309') ?>" class="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5">
+                        <input type="text" name="login_bg_color_text" value="<?= e($settings['login_bg_color'] ?? '#b45309') ?>" class="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm font-mono" oninput="this.form.login_bg_color.value=this.value">
+                    </div>
+                    <p class="mt-1 text-xs text-gray-400">Background color of the login page sidebar and admin sidebar</p>
                 </div>
             </div>
         </div>

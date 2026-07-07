@@ -11,10 +11,32 @@
 </div>
 <?php else: ?>
 <?php
-// Load cities from database
-$cities = array_column(Database::select("SELECT name FROM shipping_cities WHERE is_active = 1 ORDER BY sort_order, name") ?: [], 'name');
-if (empty($cities)) {
-    $cities = ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret', 'Thika', 'Malindi', 'Kitale', 'Nyeri', 'Nanyuki'];
+// Load cities from database (with shipping cost)
+$cityRows = Database::select("SELECT * FROM cities WHERE is_active = 1 ORDER BY sort_order, name") ?: [];
+if (empty($cityRows)) {
+    // Fallback: try shipping_cities table
+    $cityRows = Database::select("SELECT id, name, 0 as shipping_cost FROM shipping_cities WHERE is_active = 1 ORDER BY sort_order, name") ?: [];
+}
+if (empty($cityRows)) {
+    // Hardcoded fallback
+    $cityRows = [
+        ['id' => 0, 'name' => 'Nairobi', 'shipping_cost' => 0],
+        ['id' => 1, 'name' => 'Mombasa', 'shipping_cost' => 300],
+        ['id' => 2, 'name' => 'Kisumu', 'shipping_cost' => 300],
+        ['id' => 3, 'name' => 'Nakuru', 'shipping_cost' => 200],
+        ['id' => 4, 'name' => 'Eldoret', 'shipping_cost' => 250],
+        ['id' => 5, 'name' => 'Thika', 'shipping_cost' => 150],
+        ['id' => 6, 'name' => 'Malindi', 'shipping_cost' => 400],
+        ['id' => 7, 'name' => 'Kitale', 'shipping_cost' => 350],
+        ['id' => 8, 'name' => 'Nyeri', 'shipping_cost' => 200],
+        ['id' => 9, 'name' => 'Nanyuki', 'shipping_cost' => 250],
+    ];
+}
+$cities = array_column($cityRows, 'name');
+// Build city shipping cost map for JS
+$cityShippingMap = [];
+foreach ($cityRows as $cr) {
+    $cityShippingMap[$cr['name']] = (float)$cr['shipping_cost'];
 }
 // Load active payment methods from settings
 $activePaymentMethods = [];
@@ -121,11 +143,11 @@ $colorMap = [
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">City *</label>
-                            <select name="city" required class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white">
+                            <select name="city" id="citySelect" required class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white">
                                 <option value="">Select city</option>
                                 <?php
-                                foreach ($cities as $city): ?>
-                                <option value="<?= e($city) ?>" <?= ($shipping['city'] ?? Auth::user()['city'] ?? '') == $city ? 'selected' : '' ?>><?= e($city) ?></option>
+                                foreach ($cityRows as $cr): ?>
+                                <option value="<?= e($cr['name']) ?>" data-shipping-cost="<?= (float)$cr['shipping_cost'] ?>" <?= ($shipping['city'] ?? Auth::user()['city'] ?? '') == $cr['name'] ? 'selected' : '' ?>><?= e($cr['name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -267,17 +289,17 @@ $colorMap = [
                         <?php endif; ?>
                         <div class="flex justify-between text-gray-600">
                             <span>Shipping</span>
-                            <span class="font-medium <?= ($shippingCost ?? 0) == 0 ? 'text-amber-600' : '' ?>">
+                            <span id="shippingCostDisplay" class="font-medium <?= ($shippingCost ?? 0) == 0 ? 'text-amber-600' : '' ?>">
                                 <?= ($shippingCost ?? 0) == 0 ? 'Free' : formatMoney($shippingCost) ?>
                             </span>
                         </div>
                         <div class="flex justify-between text-gray-600">
-                            <span>Tax (16%)</span>
-                            <span class="font-medium"><?= formatMoney($tax ?? 0) ?></span>
+                            <span>Tax (<?= $taxRate ?? 16 ?>%)</span>
+                            <span id="orderTaxDisplay" class="font-medium"><?= formatMoney($tax ?? 0) ?></span>
                         </div>
                         <div class="border-t border-gray-200 pt-3 flex justify-between">
                             <span class="font-semibold text-base text-gray-900">Total</span>
-                            <span class="font-bold text-xl text-gray-900"><?= formatMoney($total ?? 0) ?></span>
+                            <span id="orderTotalDisplay" class="font-bold text-xl text-gray-900"><?= formatMoney($total ?? 0) ?></span>
                         </div>
                     </div>
                     <div class="mt-6 bg-gray-50 rounded-xl p-4">
@@ -387,6 +409,66 @@ $colorMap = [
 </div>
 
 <!-- Payment JavaScript -->
+<script>
+// City shipping cost data
+const cityShippingMap = <?= json_encode($cityShippingMap) ?>;
+const currencySymbol = '<?= getCurrencySymbol() ?>';
+const shippingThreshold = <?= getShippingThreshold() ?>;
+const taxRate = <?= $taxRate ?? 16 ?>;
+const subtotalVal = <?= (float)($subtotal ?? 0) ?>;
+const couponDiscountVal = <?= (float)($couponDiscount ?? 0) ?>;
+
+function updateShippingDisplay() {
+    const select = document.getElementById('citySelect');
+    if (!select) return;
+    const opt = select.options[select.selectedIndex];
+    const cityShippingCost = opt && opt.dataset.shippingCost ? parseFloat(opt.dataset.shippingCost) : 0;
+
+    // Check free shipping threshold
+    let finalShipping = cityShippingCost;
+    if (shippingThreshold > 0 && subtotalVal >= shippingThreshold) {
+        finalShipping = 0;
+    }
+
+    const el = document.getElementById('shippingCostDisplay');
+    if (el) {
+        if (finalShipping === 0) {
+            el.textContent = 'Free';
+            el.className = 'font-medium text-amber-600';
+        } else {
+            el.textContent = currencySymbol + ' ' + finalShipping.toFixed(2);
+            el.className = 'font-medium text-gray-900';
+        }
+    }
+
+    // Also update the total if visible
+    updateOrderTotalDisplay(finalShipping);
+}
+
+function updateOrderTotalDisplay(shippingCost) {
+    const afterDiscount = subtotalVal - couponDiscountVal;
+    const tax = afterDiscount * (taxRate / 100);
+    const total = afterDiscount + tax + shippingCost;
+    const totalEl = document.getElementById('orderTotalDisplay');
+    if (totalEl) {
+        totalEl.textContent = currencySymbol + ' ' + total.toFixed(2);
+    }
+    const taxEl = document.getElementById('orderTaxDisplay');
+    if (taxEl) {
+        taxEl.textContent = currencySymbol + ' ' + tax.toFixed(2);
+    }
+}
+
+// Attach city change listener
+document.addEventListener('DOMContentLoaded', function() {
+    const citySelect = document.getElementById('citySelect');
+    if (citySelect) {
+        citySelect.addEventListener('change', updateShippingDisplay);
+        updateShippingDisplay(); // initialize
+    }
+});
+</script>
+
 <script>
 // Payment method definitions with icons, colors, names
 const paymentMethods = {

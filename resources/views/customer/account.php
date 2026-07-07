@@ -166,7 +166,7 @@
                         <i data-lucide="copy" class="w-4 h-4"></i> Copy Link
                     </button>
                 </div>
-                <div class="grid grid-cols-3 gap-3">
+                <div class="grid grid-cols-3 gap-3 mb-4">
                     <div class="bg-amber-50 rounded-xl p-4 text-center">
                         <p class="text-xl font-bold text-amber-700"><?= (int)($myReferralStats['total_refs'] ?? 0) ?></p>
                         <p class="text-xs text-amber-600 font-medium">Successful Referrals</p>
@@ -176,10 +176,31 @@
                         <p class="text-xs text-green-600 font-medium">Total Earned</p>
                     </div>
                     <div class="bg-blue-50 rounded-xl p-4 text-center">
-                        <p class="text-xl font-bold text-blue-700"><?= formatMoney($myReferralStats['total_paid'] ?? 0) ?></p>
-                        <p class="text-xs text-blue-600 font-medium">Paid Out</p>
+                        <p class="text-xl font-bold text-blue-700"><?= formatMoney($commissionBalance ?? 0) ?></p>
+                        <p class="text-xs text-blue-600 font-medium">Available Balance</p>
                     </div>
                 </div>
+
+                <?php if (($commissionBalance ?? 0) > 0): ?>
+                <!-- Withdrawal Request -->
+                <div class="border-t border-gray-100 pt-4 mt-2">
+                    <h3 class="font-semibold text-gray-900 text-sm mb-3">Request Withdrawal</h3>
+                    <div id="withdrawMsg" class="hidden mb-3 px-4 py-2 rounded-lg text-sm"></div>
+                    <form id="withdrawForm" class="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+                        <div class="flex-1">
+                            <label class="block text-xs text-gray-500 mb-1">Amount (max: <?= formatMoney($commissionBalance ?? 0) ?>)</label>
+                            <input type="number" id="withdrawAmount" name="amount" min="1" max="<?= $commissionBalance ?? 0 ?>" step="0.01" placeholder="0.00" required class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-xs text-gray-500 mb-1">M-Pesa Phone / Payment Details</label>
+                            <input type="text" id="withdrawDetails" name="payment_details" placeholder="e.g. 0712345678" required class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                        </div>
+                        <button type="submit" id="withdrawBtn" class="px-5 py-2.5 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors shrink-0">
+                            Request Withdrawal
+                        </button>
+                    </form>
+                </div>
+                <?php endif; ?>
             </div>
             <?php endif; ?>
 
@@ -267,6 +288,48 @@ function copyMyRefLink() {
         el.select();
         document.execCommand('copy');
     }
+}
+
+// Withdrawal form
+const wForm = document.getElementById('withdrawForm');
+if (wForm) {
+    wForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('withdrawBtn');
+        const msgEl = document.getElementById('withdrawMsg');
+        btn.disabled = true;
+        btn.textContent = 'Processing...';
+
+        const fd = new FormData();
+        fd.append('_token', '<?= csrf_token() ?>');
+        fd.append('amount', document.getElementById('withdrawAmount').value);
+        fd.append('payment_details', document.getElementById('withdrawDetails').value);
+
+        fetch('/account/referral/withdraw', {
+            method: 'POST',
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            body: fd
+        })
+        .then(r => r.json())
+        .then(d => {
+            msgEl.classList.remove('hidden');
+            if (d.success) {
+                msgEl.className = 'mb-3 px-4 py-2 rounded-lg text-sm bg-green-50 text-green-700 border border-green-200';
+                msgEl.textContent = d.message;
+                wForm.reset();
+            } else {
+                msgEl.className = 'mb-3 px-4 py-2 rounded-lg text-sm bg-red-50 text-red-700 border border-red-200';
+                msgEl.textContent = d.error || 'Something went wrong';
+            }
+            setTimeout(() => msgEl.classList.add('hidden'), 5000);
+        })
+        .catch(() => {
+            msgEl.classList.remove('hidden');
+            msgEl.className = 'mb-3 px-4 py-2 rounded-lg text-sm bg-red-50 text-red-700 border border-red-200';
+            msgEl.textContent = 'Network error. Please try again.';
+        })
+        .finally(() => { btn.disabled = false; btn.textContent = 'Request Withdrawal'; });
+    });
 }
 lucide.createIcons();
 </script>

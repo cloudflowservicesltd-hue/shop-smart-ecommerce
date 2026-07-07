@@ -30,6 +30,9 @@ class AuthController extends BaseController
         $sessionId = session_id();
 
         if (Auth::attempt($email, $password)) {
+            // Save last login
+            Database::update('users', ['last_login' => date('Y-m-d H:i:s')], 'id = ?', [Auth::id()]);
+
             // Merge guest cart items into user cart
             if (Auth::check()) {
                 $userId = Auth::id();
@@ -85,6 +88,8 @@ class AuthController extends BaseController
             $refCheck = Database::selectOne("SELECT * FROM referrals WHERE referral_code = ?", [$referralCodeInput]);
             if (!$refCheck) { Session::flash('error', 'Invalid referral code. Please check and try again.'); Redirect::to('/register'); }
             $validRefCode = $referralCodeInput;
+        } elseif (Session::get('referral_code')) {
+            $validRefCode = Session::get('referral_code');
         } elseif (isset($_COOKIE['referral_code'])) {
             $validRefCode = $_COOKIE['referral_code'];
         }
@@ -100,10 +105,14 @@ class AuthController extends BaseController
             $myReferralCode = 'REF' . strtoupper(substr(md5($userId . time()), 0, 8));
             try { Database::insert('referrals', ['referrer_id' => $userId, 'referral_code' => $myReferralCode, 'created_at' => date('Y-m-d H:i:s')]); } catch(\Throwable $e) {}
 
-            // If user registered with a referral code, store it as a cookie for order tracking
+            // If user registered with a referral code, store it on user record and as a cookie
             if (!empty($validRefCode)) {
+                try { Database::update('users', ['referral_code' => $validRefCode], 'id = ?', [$userId]); } catch (\Throwable $e) {}
                 setcookie('referral_code', $validRefCode, time() + 86400 * 90, '/');
             }
+
+            // Clear session referral code after registration
+            unset($_SESSION['referral_code']);
         }
 
         // Merge guest cart items into newly registered user cart

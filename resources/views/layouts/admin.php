@@ -9,6 +9,7 @@ try {
 $adminLogo = !empty($adminSettings['site_logo']) ? $adminSettings['site_logo'] : '';
 $adminFavicon = !empty($adminSettings['site_favicon']) ? $adminSettings['site_favicon'] : '';
 $adminStoreName = $adminSettings['store_name'] ?? 'ShopSmart';
+$adminSidebarColor = $adminSettings['login_bg_color'] ?? '#111827';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -44,8 +45,8 @@ $adminStoreName = $adminSettings['store_name'] ?? 'ShopSmart';
         .sidebar-link:hover,.sidebar-link.active{background:rgba(245,158,11,0.15);color:#fbbf24}
         .sidebar-link.active{border-right:3px solid #f59e0b}
         .scrollbar-thin::-webkit-scrollbar{width:5px}
-        .scrollbar-thin::-webkit-scrollbar-track{background:#1f2937}
-        .scrollbar-thin::-webkit-scrollbar-thumb{background:#4b5563;border-radius:3px}
+        .scrollbar-thin::-webkit-scrollbar-track{background:rgba(0,0,0,0.2)}
+        .scrollbar-thin::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.2);border-radius:3px}
         .submenu{max-height:0;overflow:hidden;transition:max-height .2s ease}
         .submenu.open{max-height:300px}
     </style>
@@ -55,9 +56,9 @@ $adminStoreName = $adminSettings['store_name'] ?? 'ShopSmart';
     <div id="sidebarOverlay" class="hidden fixed inset-0 bg-black/50 z-40 lg:hidden" onclick="toggleSidebar()"></div>
 
     <!-- Sidebar -->
-    <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-50 w-64 bg-gray-900 text-gray-300 transform -translate-x-full lg:translate-x-0 transition-transform duration-200 flex flex-col">
+    <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-50 w-64 text-gray-300 transform -translate-x-full lg:translate-x-0 transition-transform duration-200 flex flex-col" style="background-color:<?= e($adminSidebarColor) ?>">
         <!-- Logo -->
-        <div class="flex items-center gap-2 px-5 py-4 border-b border-gray-800">
+        <div class="flex items-center gap-2 px-5 py-4 border-b border-white/10">
             <?php if ($adminLogo): ?>
                 <img src="<?= e($adminLogo) ?>" alt="<?= e($adminStoreName) ?>" class="h-8 w-auto max-w-[120px] object-contain brightness-0 invert">
             <?php else: ?>
@@ -77,7 +78,7 @@ $adminStoreName = $adminSettings['store_name'] ?? 'ShopSmart';
 
             <!-- Frontend Content (NEW) -->
             <div>
-                <button onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:text-white hover:bg-gray-800/50 transition-colors">
+                <button onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:text-white hover:bg-white/5 transition-colors">
                     <i data-lucide="palette" class="w-4.5 h-4.5"></i> Frontend Content
                     <i data-lucide="chevron-right" class="w-3.5 h-3.5 ml-auto chevron transition-transform"></i>
                 </button>
@@ -105,7 +106,7 @@ $adminStoreName = $adminSettings['store_name'] ?? 'ShopSmart';
 
             <!-- Products -->
             <div>
-                <button onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:text-white hover:bg-gray-800/50 transition-colors">
+                <button onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:text-white hover:bg-white/5 transition-colors">
                     <i data-lucide="package" class="w-4.5 h-4.5"></i> Products
                     <i data-lucide="chevron-right" class="w-3.5 h-3.5 ml-auto chevron transition-transform"></i>
                 </button>
@@ -130,7 +131,7 @@ $adminStoreName = $adminSettings['store_name'] ?? 'ShopSmart';
 
             <!-- Orders -->
             <div>
-                <button onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:text-white hover:bg-gray-800/50 transition-colors">
+                <button onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:text-white hover:bg-white/5 transition-colors">
                     <i data-lucide="shopping-bag" class="w-4.5 h-4.5"></i> Orders
                     <i data-lucide="chevron-right" class="w-3.5 h-3.5 ml-auto chevron transition-transform"></i>
                 </button>
@@ -154,7 +155,7 @@ $adminStoreName = $adminSettings['store_name'] ?? 'ShopSmart';
 
             <!-- Marketing -->
             <div>
-                <button onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:text-white hover:bg-gray-800/50 transition-colors">
+                <button onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:text-white hover:bg-white/5 transition-colors">
                     <i data-lucide="megaphone" class="w-4.5 h-4.5"></i> Marketing
                     <i data-lucide="chevron-right" class="w-3.5 h-3.5 ml-auto chevron transition-transform"></i>
                 </button>
@@ -187,7 +188,7 @@ $adminStoreName = $adminSettings['store_name'] ?? 'ShopSmart';
 
             <!-- Payments -->
             <div>
-                <button onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:text-white hover:bg-gray-800/50 transition-colors">
+                <button onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:text-white hover:bg-white/5 transition-colors">
                     <i data-lucide="credit-card" class="w-4.5 h-4.5"></i> Payments
                     <i data-lucide="chevron-right" class="w-3.5 h-3.5 ml-auto chevron transition-transform"></i>
                 </button>
@@ -213,8 +214,11 @@ $adminStoreName = $adminSettings['store_name'] ?? 'ShopSmart';
                 <i data-lucide="shield" class="w-4.5 h-4.5"></i> Users & Roles
             </a>
 
-            <a href="/admin/settings" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/settings') ? 'active text-amber-400' : 'hover:text-white' ?>">
+            <a href="/admin/settings" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/settings') && !str_contains(Request::uri(), '/admin/settings/cities') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="settings" class="w-4.5 h-4.5"></i> Settings
+            </a>
+            <a href="/admin/settings/cities" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/settings/cities') ? 'active text-amber-400' : 'hover:text-white' ?>">
+                <i data-lucide="map-pin" class="w-4 h-4"></i> Cities
             </a>
 
             <a href="/admin/blogs" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/blogs') ? 'active text-amber-400' : 'hover:text-white' ?>">
@@ -240,10 +244,13 @@ $adminStoreName = $adminSettings['store_name'] ?? 'ShopSmart';
             <a href="/admin/referrals" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/referrals') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="users-round" class="w-4.5 h-4.5"></i> Affiliates
             </a>
+            <a href="/admin/referrals/withdrawals" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm pl-9 <?= isActive('/admin/referrals/withdrawals') ? 'active text-amber-400' : 'hover:text-white' ?>">
+                <i data-lucide="wallet" class="w-4 h-4"></i> Withdrawals
+            </a>
         </nav>
 
         <!-- User -->
-        <div class="border-t border-gray-800 px-4 py-3">
+        <div class="border-t border-white/10 px-4 py-3">
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 bg-amber-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
                     <?= strtoupper(substr(Auth::user()['name'] ?? 'A', 0, 1)) ?>

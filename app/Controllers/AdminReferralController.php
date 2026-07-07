@@ -66,4 +66,58 @@ class AdminReferralController extends BaseController
         Session::flash('success', 'Commission marked as paid');
         Redirect::to('/admin/referrals');
     }
+
+    public function withdrawals(): void
+    {
+        $breadcrumbs = [['Affiliates', '/admin/referrals'], ['Withdrawal Requests', '']];
+        $statusFilter = Request::query('status', 'all');
+
+        $where = "1=1";
+        $params = [];
+        if ($statusFilter !== 'all') {
+            $where .= " AND w.status = ?";
+            $params[] = $statusFilter;
+        }
+
+        $withdrawals = Database::select(
+            "SELECT w.*, u.name as user_name, u.email as user_email
+             FROM referral_withdrawals w
+             LEFT JOIN users u ON w.user_id = u.id
+             WHERE {$where}
+             ORDER BY w.created_at DESC
+             LIMIT 100",
+            $params
+        );
+
+        $stats = [
+            'total' => Database::selectOne("SELECT COUNT(*) as c FROM referral_withdrawals")['c'] ?? 0,
+            'pending' => Database::selectOne("SELECT COUNT(*) as c FROM referral_withdrawals WHERE status = 'pending'")['c'] ?? 0,
+            'approved' => Database::selectOne("SELECT COUNT(*) as c FROM referral_withdrawals WHERE status = 'approved'")['c'] ?? 0,
+            'totalAmount' => Database::selectOne("SELECT COALESCE(SUM(amount),0) as t FROM referral_withdrawals WHERE status IN ('pending','approved')")['t'] ?? 0,
+        ];
+
+        ob_start();
+        include ROOT_PATH . '/resources/views/admin/withdrawals.php';
+        $content = ob_get_clean();
+        include ROOT_PATH . '/resources/views/layouts/admin.php';
+    }
+
+    public function approveWithdrawal($id): void
+    {
+        $w = Database::selectOne("SELECT * FROM referral_withdrawals WHERE id = ?", [(int)$id]);
+        if (!$w) { Session::flash('error', 'Withdrawal not found'); Redirect::back(); return; }
+        Database::update('referral_withdrawals', ['status' => 'approved', 'processed_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [(int)$id]);
+        Session::flash('success', 'Withdrawal approved');
+        Redirect::to('/admin/referrals/withdrawals');
+    }
+
+    public function rejectWithdrawal($id): void
+    {
+        $notes = Request::post('admin_notes', '');
+        $w = Database::selectOne("SELECT * FROM referral_withdrawals WHERE id = ?", [(int)$id]);
+        if (!$w) { Session::flash('error', 'Withdrawal not found'); Redirect::back(); return; }
+        Database::update('referral_withdrawals', ['status' => 'rejected', 'admin_notes' => $notes, 'processed_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [(int)$id]);
+        Session::flash('success', 'Withdrawal rejected');
+        Redirect::to('/admin/referrals/withdrawals');
+    }
 }

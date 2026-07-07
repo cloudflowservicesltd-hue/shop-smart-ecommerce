@@ -1,3 +1,15 @@
+<?php
+// Category circle size from settings
+$circleSize = Database::selectOne("SELECT value FROM settings WHERE `key` = 'category_circle_size'")['value'] ?? 'lg';
+$sizeMap = [
+    'sm'  => ['circle' => 'w-24 h-24', 'wrap' => 'w-28', 'font' => 'text-xs', 'border' => 'border-3', 'gap' => 'gap-4'],
+    'md'  => ['circle' => 'w-32 h-32', 'wrap' => 'w-36', 'font' => 'text-sm', 'border' => 'border-4', 'gap' => 'gap-5'],
+    'lg'  => ['circle' => 'w-40 h-40', 'wrap' => 'w-44', 'font' => 'text-sm', 'border' => 'border-4', 'gap' => 'gap-6'],
+    'xl'  => ['circle' => 'w-48 h-48', 'wrap' => 'w-52', 'font' => 'text-base', 'border' => 'border-4', 'gap' => 'gap-7'],
+    '2xl' => ['circle' => 'w-56 h-56', 'wrap' => 'w-60', 'font' => 'text-base', 'border' => 'border-4', 'gap' => 'gap-8'],
+];
+$sz = $sizeMap[$circleSize] ?? $sizeMap['lg'];
+?>
 <!-- Breadcrumbs -->
 <div class="bg-gray-50 border-b border-gray-100">
     <div class="max-w-7xl mx-auto px-4 py-3">
@@ -17,38 +29,19 @@
 
     <?php if (!empty($categories ?? [])): ?>
     <!-- Top-Level Categories -->
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+    <div class="flex <?= $sz['gap'] ?> overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin" style="-webkit-overflow-scrolling: touch;">
         <?php foreach ($categories as $cat): 
             $subcategories = $cat['subcategories'] ?? [];
             $count = $cat['product_count'] ?? 0;
         ?>
-        <a href="/category/<?= e($cat['slug']) ?>" class="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:border-amber-200 transition-all duration-300">
-            <div class="aspect-video bg-gradient-to-br from-amber-50 to-teal-50 overflow-hidden relative">
+        <a href="/category/<?= e($cat['slug']) ?>" class="group flex flex-col items-center snap-start shrink-0 <?= $sz['wrap'] ?>">
+            <div class="<?= $sz['circle'] ?> rounded-full overflow-hidden <?= $sz['border'] ?> border-gray-100 group-hover:border-amber-300 transition-all duration-300 shadow-sm group-hover:shadow-lg">
                 <img src="<?= $cat['image'] ?? "/uploads/no-image.jpg" ?>" 
                      alt="<?= e($cat['name']) ?>" 
-                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
-                <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
             </div>
-            <div class="p-5">
-                <h3 class="font-heading font-semibold text-gray-900 group-hover:text-amber-600 transition-colors"><?= e($cat['name']) ?></h3>
-                <?php if (!empty($cat['description'])): ?>
-                <p class="text-xs text-gray-400 mt-1 line-clamp-1"><?= e($cat['description']) ?></p>
-                <?php endif; ?>
-                <div class="flex items-center justify-between mt-3">
-                    <span class="text-xs text-gray-400"><?= number_format($count) ?> products</span>
-                    <i data-lucide="arrow-right" class="w-4 h-4 text-gray-300 group-hover:text-amber-500 group-hover:translate-x-1 transition-all"></i>
-                </div>
-                <?php if (!empty($subcategories)): ?>
-                <div class="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-gray-100">
-                    <?php foreach (array_slice($subcategories, 0, 3) as $sub): ?>
-                    <span class="text-[11px] bg-gray-50 text-gray-500 px-2 py-0.5 rounded-full"><?= e($sub['name']) ?></span>
-                    <?php endforeach; ?>
-                    <?php if (count($subcategories) > 3): ?>
-                    <span class="text-[11px] text-amber-600 font-medium">+<?= count($subcategories) - 3 ?> more</span>
-                    <?php endif; ?>
-                </div>
-                <?php endif; ?>
-            </div>
+            <h3 class="mt-3 <?= $sz['font'] ?> font-medium text-gray-900 group-hover:text-amber-600 transition-colors text-center line-clamp-2 leading-tight"><?= e($cat['name']) ?></h3>
+            <span class="text-xs text-gray-400 mt-0.5"><?= number_format($count) ?> items</span>
         </a>
         <?php endforeach; ?>
     </div>
@@ -62,10 +55,10 @@
     if ($hasSubs): ?>
     <div class="mt-16">
         <h2 class="font-heading text-xl font-bold text-gray-900 mb-6">Sub-Categories</h2>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div class="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin" style="-webkit-overflow-scrolling: touch;">
             <?php foreach ($categories as $cat): ?>
                 <?php foreach ($cat['subcategories'] ?? [] as $sub): ?>
-                <a href="/category/<?= e($sub['slug']) ?>" class="group flex items-center gap-3 bg-white border border-gray-100 rounded-xl p-4 hover:border-amber-200 hover:shadow-md transition-all duration-300">
+                <a href="/category/<?= e($sub['slug']) ?>" class="snap-start shrink-0 w-40 group flex items-center gap-3 bg-white border border-gray-100 rounded-xl p-4 hover:border-amber-200 hover:shadow-md transition-all duration-300">
                     <div class="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-amber-100 transition-colors">
                         <i data-lucide="tag" class="w-4 h-4 text-amber-600"></i>
                     </div>

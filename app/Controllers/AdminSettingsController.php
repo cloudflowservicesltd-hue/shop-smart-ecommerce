@@ -130,10 +130,15 @@ class AdminSettingsController extends BaseController
         }
 
         // General text fields
-        $fields = ['store_name','store_tagline','store_email','store_phone','store_address','currency','currency_symbol','tax_rate','shipping_threshold','shipping_banner_text','login_title','login_subtitle','login_description'];
+        $fields = ['store_name','store_tagline','store_email','store_phone','store_address','currency','currency_symbol','tax_rate','shipping_threshold','shipping_banner_text','login_title','login_subtitle','login_description','category_circle_size'];
         foreach ($fields as $f) {
             $upsert($f, Request::post($f, ''), 'general');
         }
+
+        // Login sidebar color
+        $loginBg = Request::post('login_bg_color', '');
+        if (!$loginBg) $loginBg = Request::post('login_bg_color_text', '');
+        $upsert('login_bg_color', $loginBg ?: '#b45309', 'general');
 
         // Login logo upload
         if (isset($_FILES['login_logo']) && $_FILES['login_logo']['error'] === UPLOAD_ERR_OK) {
@@ -190,5 +195,74 @@ class AdminSettingsController extends BaseController
 
         Session::flash('success', 'Settings saved successfully');
         Redirect::to('/admin/settings');
+    }
+
+    /**
+     * Manage cities (GET: list, POST: add/edit/delete).
+     * Route: GET/POST /admin/settings/cities
+     */
+    public function cities(): void
+    {
+        $action = Request::post('action', '');
+
+        // Handle POST actions
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if ($action === 'delete') {
+                $id = (int)Request::post('id', 0);
+                if ($id > 0) {
+                    Database::delete('cities', 'id = ?', [$id]);
+                    Session::flash('success', 'City deleted');
+                }
+                Redirect::to('/admin/settings/cities');
+                return;
+            }
+
+            if ($action === 'edit') {
+                $id = (int)Request::post('id', 0);
+                if ($id > 0) {
+                    Database::update('cities', [
+                        'name'         => trim(Request::post('name', '')),
+                        'shipping_cost' => (float)Request::post('shipping_cost', 0),
+                        'is_active'    => Request::post('is_active') ? 1 : 0,
+                        'sort_order'   => (int)Request::post('sort_order', 0),
+                    ], 'id = ?', [$id]);
+                    Session::flash('success', 'City updated');
+                }
+                Redirect::to('/admin/settings/cities');
+                return;
+            }
+
+            // Default: add new city
+            $name = trim(Request::post('name', ''));
+            if (empty($name)) {
+                Session::flash('error', 'City name is required');
+                Redirect::to('/admin/settings/cities');
+                return;
+            }
+            $exists = Database::selectOne("SELECT id FROM cities WHERE name = ?", [$name]);
+            if ($exists) {
+                Session::flash('error', 'City already exists');
+                Redirect::to('/admin/settings/cities');
+                return;
+            }
+            Database::insert('cities', [
+                'name'          => $name,
+                'shipping_cost' => (float)Request::post('shipping_cost', 0),
+                'is_active'     => Request::post('is_active') ? 1 : 0,
+                'sort_order'    => (int)Request::post('sort_order', 0),
+                'created_at'    => date('Y-m-d H:i:s'),
+            ]);
+            Session::flash('success', 'City added');
+            Redirect::to('/admin/settings/cities');
+            return;
+        }
+
+        // GET: list cities
+        $cities = Database::select("SELECT * FROM cities ORDER BY sort_order ASC, name ASC");
+        $breadcrumbs = [['Settings', '/admin/settings'], ['Cities', '']];
+        ob_start();
+        include ROOT_PATH . '/resources/views/admin/cities.php';
+        $content = ob_get_clean();
+        include ROOT_PATH . '/resources/views/layouts/admin.php';
     }
 }
