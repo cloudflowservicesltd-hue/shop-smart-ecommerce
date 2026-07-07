@@ -324,6 +324,8 @@ $router->get('/payment/status', 'CustomerPaymentController@status');
 $router->post('/payment/mpesa/callback', 'CustomerPaymentController@mpesaCallback');
 $router->get('/payment/intasend/callback', 'CustomerPaymentController@intasendCallback');
 $router->get('/payment/paypal/callback', 'CustomerPaymentController@paypalCallback');
+$router->post('/payment/paypal/create-order', 'CustomerPaymentController@paypalCreateOrder');
+$router->post('/payment/paypal/capture', 'CustomerPaymentController@paypalCapture');
 $router->get('/payment/stripe/success', 'CustomerPaymentController@stripeSuccess');
 $router->get('/payment/pesapal/redirect', 'CustomerPaymentController@pesapalRedirect');
 

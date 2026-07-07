@@ -1303,6 +1303,283 @@ class CustomerPaymentController extends BaseController
     }
 
     /**
+     * POST /payment/paypal/create-order
+     * Called by the PayPal JS SDK's createOrder callback.
+     * Creates the DB order (from cart) + PayPal order, returns the PayPal order ID.
+     */
+    public function paypalCreateOrder(): void
+    {
+        header('Content-Type: application/json');
+
+        try {
+        if (!Auth::check()) { $this->posJson(['success' => false, 'message' => 'Please login']); return; }
+
+        $ppClientId = $this->getSetting('paypal_client_id');
+        $ppSecret = $this->getSetting('paypal_secret');
+        if (empty($ppClientId) || empty($ppSecret)) {
+            $this->posJson(['success' => false, 'message' => 'PayPal is not configured. Please contact admin.']);
+            return;
+        }
+
+        // Check if this is a re-payment for an existing order
+        $existingOrderId = (int)Request::post('order_id', 0);
+
+        if ($existingOrderId > 0) {
+            // Re-payment flow: order already exists
+            $order = Database::selectOne("SELECT * FROM orders WHERE id = ? AND customer_id = ?", [$existingOrderId, Auth::id()]);
+            if (!$order) {
+                $this->posJson(['success' => false, 'message' => 'Order not found']);
+                return;
+            }
+            $orderId = (int)$order['id'];
+            $orderTotal = (float)$order['total'];
+            $orderNum = $order['order_number'];
+        } else {
+            // New checkout flow: create order from cart
+            $result = $this->createOrderFromCart();
+            if (!$result['success']) {
+                $this->posJson($result);
+                return;
+            }
+            $orderId = $result['order_id'];
+            $orderTotal = (float)($result['total'] ?? 0);
+            $orderNum = $result['order_number'];
+        }
+
+        if ($orderTotal <= 0) {
+            $this->markFailed($orderId, 'Invalid order total: ' . $orderTotal);
+            $this->posJson(['success' => false, 'message' => 'Invalid order total. Please contact support.']);
+            return;
+        }
+
+        $ppEnv = $this->getSetting('paypal_env') ?: 'sandbox';
+        $ppCurrency = $this->getSetting('paypal_currency') ?: 'USD';
+        $rateInfo = $this->getPayPalRate($ppCurrency);
+        $ppRate = $rateInfo['rate'];
+        $rateSource = $rateInfo['source'];
+
+        $ppBase = $ppEnv === 'production'
+            ? 'https://api-m.paypal.com'
+            : 'https://api-m.sandbox.paypal.com';
+
+        // Step 1: Get access token
+        $tokenResult = $this->curlRequest($ppBase . '/v1/oauth2/token', [
+            CURLOPT_USERPWD    => $ppClientId . ':' . $ppSecret,
+            CURLOPT_POST       => true,
+            CURLOPT_POSTFIELDS => 'grant_type=client_credentials',
+        ]);
+
+        if (!$tokenResult['success']) {
+            $this->markFailed($orderId, 'PayPal network error: ' . $tokenResult['error']);
+            $this->posJson(['success' => false, 'message' => 'Cannot reach PayPal servers. Error: ' . $tokenResult['error']]);
+            return;
+        }
+
+        $tokenData = json_decode($tokenResult['response'], true);
+        $accessToken = $tokenData['access_token'] ?? '';
+
+        if (empty($accessToken)) {
+            $authErr = $tokenData['error_description'] ?? ($tokenData['error'] ?? 'Invalid credentials');
+            $this->markFailed($orderId, 'PayPal auth failed: ' . $authErr);
+            $this->posJson(['success' => false, 'message' => 'PayPal authentication failed: ' . $authErr]);
+            return;
+        }
+
+        // Step 2: Create PayPal order
+        $convertedAmount = round($orderTotal * $ppRate, 2);
+        if ($convertedAmount < 1) $convertedAmount = 1.00;
+
+        $siteUrl = $this->getSiteUrl();
+
+        $orderResult = $this->curlRequest($ppBase . '/v2/checkout/orders', [
+            CURLOPT_HTTPHEADER  => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $accessToken,
+            ],
+            CURLOPT_POST       => true,
+            CURLOPT_POSTFIELDS => json_encode([
+                'intent' => 'CAPTURE',
+                'purchase_units' => [[
+                    'reference_id' => $orderNum,
+                    'description' => 'Order ' . $orderNum . ' (KSh ' . number_format($orderTotal, 2) . ')',
+                    'amount' => [
+                        'currency_code' => $ppCurrency,
+                        'value' => (string)$convertedAmount,
+                        'breakdown' => [
+                            'item_total' => [
+                                'currency_code' => $ppCurrency,
+                                'value' => (string)$convertedAmount,
+                            ],
+                        ],
+                    ],
+                ]],
+                'application_context' => [
+                    'brand_name' => $this->getSetting('store_name') ?: 'ShopSmart',
+                    'user_action' => 'PAY_NOW',
+                    'shipping_preference' => 'NO_SHIPPING',
+                ],
+            ]),
+        ]);
+
+        if (!$orderResult['success']) {
+            $this->markFailed($orderId, 'PayPal network error: ' . $orderResult['error']);
+            $this->posJson(['success' => false, 'message' => 'Cannot reach PayPal to create order. Error: ' . $orderResult['error']]);
+            return;
+        }
+
+        $ppOrder = json_decode($orderResult['response'], true);
+
+        if (!empty($ppOrder['id'])) {
+            // Save PayPal order ID on the DB order
+            Database::update('orders', [
+                'payment_reference' => $ppOrder['id'],
+                'notes' => 'PayPal order: KSh ' . number_format($orderTotal, 2) . ' → ' . $ppCurrency . ' ' . $convertedAmount . ' (rate: ' . $ppRate . ', ' . $rateSource . ')',
+                'updated_at' => date('Y-m-d H:i:s'),
+            ], 'id = ?', [$orderId]);
+
+            if ($existingOrderId === 0) {
+                Session::remove('checkout_shipping');
+            }
+            Session::set('last_order_id', $orderId);
+
+            $this->posJson([
+                'success' => true,
+                'paypal_order_id' => $ppOrder['id'],
+                'order_id' => $orderId,
+                'converted_amount' => $convertedAmount,
+                'currency' => $ppCurrency,
+            ]);
+            return;
+        }
+
+        $errMsg = $ppOrder['message'] ?? ($ppOrder['details'][0]['description'] ?? 'Could not create PayPal order');
+        $this->markFailed($orderId, 'PayPal: ' . $errMsg);
+        $this->posJson(['success' => false, 'message' => 'PayPal error: ' . $errMsg]);
+
+        } catch (\Throwable $e) {
+            $this->posLog('PAYPAL_CREATE_ORDER_ERROR', ['error' => $e->getMessage()]);
+            $this->posJson(['success' => false, 'message' => 'An unexpected error occurred. Please try again.']);
+        }
+    }
+
+    /**
+     * POST /payment/paypal/capture
+     * Called by the PayPal JS SDK's onApprove callback.
+     * Captures the approved PayPal payment and updates the DB order.
+     */
+    public function paypalCapture(): void
+    {
+        header('Content-Type: application/json');
+
+        try {
+        if (!Auth::check()) { $this->posJson(['success' => false, 'message' => 'Please login']); return; }
+
+        $paypalOrderId = Request::post('paypal_order_id', '');
+        $dbOrderId = (int)Request::post('order_id', 0);
+
+        if (empty($paypalOrderId) || $dbOrderId <= 0) {
+            $this->posJson(['success' => false, 'message' => 'Missing payment information']);
+            return;
+        }
+
+        $order = Database::selectOne("SELECT * FROM orders WHERE id = ? AND customer_id = ?", [$dbOrderId, Auth::id()]);
+        if (!$order) {
+            $this->posJson(['success' => false, 'message' => 'Order not found']);
+            return;
+        }
+
+        if ($order['payment_status'] === 'paid') {
+            $this->posJson(['success' => true, 'message' => 'Already paid']);
+            return;
+        }
+
+        $ppClientId = $this->getSetting('paypal_client_id');
+        $ppSecret = $this->getSetting('paypal_secret');
+        $ppEnv = $this->getSetting('paypal_env') ?: 'sandbox';
+
+        if (empty($ppClientId) || empty($ppSecret)) {
+            // No credentials — mark as paid for testing
+            Database::update('orders', [
+                'payment_status' => 'paid',
+                'status' => 'processing',
+                'payment_reference' => $paypalOrderId,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ], 'id = ?', [$dbOrderId]);
+            $this->processReferralCommission($dbOrderId);
+            $this->posJson(['success' => true, 'redirect' => '/order-success']);
+            return;
+        }
+
+        $ppBase = $ppEnv === 'production'
+            ? 'https://api-m.paypal.com'
+            : 'https://api-m.sandbox.paypal.com';
+
+        // Get access token
+        $tokenResult = $this->curlRequest($ppBase . '/v1/oauth2/token', [
+            CURLOPT_USERPWD    => $ppClientId . ':' . $ppSecret,
+            CURLOPT_POST       => true,
+            CURLOPT_POSTFIELDS => 'grant_type=client_credentials',
+        ]);
+
+        if (!$tokenResult['success']) {
+            $this->posJson(['success' => false, 'message' => 'Cannot reach PayPal to capture payment. Error: ' . $tokenResult['error']]);
+            return;
+        }
+
+        $tokenData = json_decode($tokenResult['response'], true);
+        $accessToken = $tokenData['access_token'] ?? '';
+
+        if (empty($accessToken)) {
+            $this->posJson(['success' => false, 'message' => 'PayPal authentication failed']);
+            return;
+        }
+
+        // Capture the payment
+        $captureResult = $this->curlRequest($ppBase . '/v2/checkout/orders/' . urlencode($paypalOrderId) . '/capture', [
+            CURLOPT_HTTPHEADER  => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $accessToken,
+            ],
+            CURLOPT_POST       => true,
+            CURLOPT_POSTFIELDS => '{}',
+        ]);
+
+        $captureData = json_decode($captureResult['response'], true);
+        $captureStatus = $captureData['status'] ?? '';
+
+        if ($captureStatus === 'COMPLETED') {
+            $captureId = $captureData['purchase_units'][0]['payments']['captures'][0]['id'] ?? $paypalOrderId;
+            Database::update('orders', [
+                'payment_status' => 'paid',
+                'status' => 'processing',
+                'payment_reference' => $captureId,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ], 'id = ?', [$dbOrderId]);
+
+            Database::insert('transactions', [
+                'order_id' => $dbOrderId,
+                'payment_method' => 'paypal',
+                'amount' => $order['total'],
+                'reference' => $captureId,
+                'status' => 'completed',
+                'created_at' => date('Y-m-d H:i:s'),
+            ]);
+
+            $this->processReferralCommission($dbOrderId);
+            Session::set('last_order_id', $dbOrderId);
+            $this->posJson(['success' => true, 'redirect' => '/order-success']);
+        } else {
+            $this->posLog('PAYPAL_SDK_CAPTURE_FAILED', ['order_id' => $dbOrderId, 'paypal_order_id' => $paypalOrderId, 'response' => $captureData]);
+            $this->posJson(['success' => false, 'message' => 'Payment capture failed. Status: ' . $captureStatus . '. Please try again or contact support.']);
+        }
+
+        } catch (\Throwable $e) {
+            $this->posLog('PAYPAL_CAPTURE_ERROR', ['error' => $e->getMessage()]);
+            $this->posJson(['success' => false, 'message' => 'An unexpected error occurred during payment capture.']);
+        }
+    }
+
+    /**
      * GET /payment/stripe/success
      * Stripe checkout success redirect.
      */

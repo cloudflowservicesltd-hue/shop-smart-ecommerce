@@ -58,6 +58,11 @@ if (empty($activePaymentMethods)) {
     $activePaymentMethods['mpesa'] = $methodConfigs['mpesa'];
 }
 
+// PayPal JS SDK config
+$ppClientId = Database::selectOne("SELECT value FROM settings WHERE `key` = 'paypal_client_id'")['value'] ?? '';
+$ppEnv = Database::selectOne("SELECT value FROM settings WHERE `key` = 'paypal_env'")['value'] ?? 'sandbox';
+$ppCurrency = Database::selectOne("SELECT value FROM settings WHERE `key` = 'paypal_currency'")['value'] ?? 'USD';
+
 // Color mapping for Tailwind classes
 $colorMap = [
     'green'  => ['bg' => 'bg-green-100', 'text' => 'text-green-600', 'border' => 'border-green-500', 'bgLight' => 'bg-green-50'],
@@ -372,7 +377,53 @@ $colorMap = [
     </div>
 </div>
 
-<!-- Redirect Payment Modal (IntaSend / PayPal / PesaPal / Stripe) -->
+<!-- PayPal JS SDK Modal -->
+<div id="paypalSdkModal" class="hidden fixed inset-0 z-50">
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closePaypalSdkModal()"></div>
+    <!-- Modal Card -->
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <!-- Close button -->
+            <button onclick="closePaypalSdkModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <!-- Header -->
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none">
+                        <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.77.77 0 0 1 .757-.654h6.328c2.352 0 4.02.546 4.957 1.632.906 1.05 1.18 2.59.84 4.593-.413 2.427-1.473 4.17-3.137 5.175-1.622.977-3.727 1.472-6.26 1.472H6.63l-.96 5.615a.641.641 0 0 1-.594.584z" fill="#003087"/>
+                        <path d="M21.735 7.44c-.023.132-.048.267-.077.405-.99 4.79-4.49 6.438-8.93 6.438h-2.26a1.11 1.11 0 0 0-1.094.936l-1.164 7.39a.584.584 0 0 0 .577.677h4.218a.976.976 0 0 0 .963-.822l.041-.214.779-4.94.05-.272a.976.976 0 0 1 .963-.823h.618c4 0 7.13-1.626 8.048-6.33.382-1.96.184-3.595-.828-4.748a3.95 3.95 0 0 0-.396-.417z" fill="#0070e0"/>
+                        <path d="M20.722 6.99a7.4 7.4 0 0 0-.998-.238 12.7 12.7 0 0 0-2.003-.147h-5.01a.976.976 0 0 0-.964.823l-1.283 8.138-.037.19a1.11 1.11 0 0 1 1.094-.936h2.26c4.44 0 7.94-1.648 8.93-6.438.038-.19.07-.377.098-.562a5.06 5.06 0 0 0-1.087-1.83z" fill="#003087"/>
+                    </svg>
+                </div>
+                <h3 class="font-heading text-xl font-bold text-gray-900">Pay with PayPal</h3>
+                <p class="text-gray-500 text-sm mt-1">Choose how you want to pay</p>
+            </div>
+            <!-- Amount -->
+            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-5 text-center">
+                <p class="text-sm text-indigo-600 font-medium">Amount to Pay</p>
+                <p class="text-2xl font-bold text-indigo-700 mt-1"><?= formatMoney($total ?? 0) ?></p>
+                <p id="paypalConvertedAmount" class="text-xs text-indigo-400 mt-1"></p>
+            </div>
+            <!-- PayPal Buttons Container -->
+            <div id="paypalButtonContainer" class="min-h-[45px] flex items-center justify-center">
+                <div class="flex items-center gap-2 text-gray-400">
+                    <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
+                    <span class="text-sm">Loading PayPal...</span>
+                </div>
+            </div>
+            <!-- Error/Status area -->
+            <div id="paypalSdkStatus" class="mt-4"></div>
+            <!-- Cancel -->
+            <button onclick="closePaypalSdkModal()" class="w-full mt-3 inline-flex items-center justify-center gap-2 text-gray-600 hover:text-gray-800 font-medium px-6 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Redirect Payment Modal (IntaSend / PesaPal / Stripe) -->
 <div id="redirectModal" class="hidden fixed inset-0 z-50">
     <!-- Backdrop -->
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeRedirectModal()"></div>
@@ -417,6 +468,12 @@ const shippingThreshold = <?= getShippingThreshold() ?>;
 const taxRate = <?= $taxRate ?? 16 ?>;
 const subtotalVal = <?= (float)($subtotal ?? 0) ?>;
 const couponDiscountVal = <?= (float)($couponDiscount ?? 0) ?>;
+
+// PayPal JS SDK config
+const ppClientId = '<?= e($ppClientId) ?>';
+const ppEnv = '<?= e($ppEnv) ?>';
+const ppCurrency = '<?= e($ppCurrency) ?>';
+let paypalSdkLoaded = false;
 
 function updateShippingDisplay() {
     const select = document.getElementById('citySelect');
@@ -496,6 +553,8 @@ function initiatePayment() {
 
     if (method === 'mpesa') {
         openMpesaModal();
+    } else if (method === 'paypal') {
+        openPaypalSdkModal();
     } else {
         openRedirectModal(method);
     }
@@ -716,11 +775,218 @@ async function processRedirectPayment() {
     }
 }
 
+// ============================================================
+// PayPal JS SDK Functions
+// ============================================================
+function closePaypalSdkModal() {
+    document.getElementById('paypalSdkModal').classList.add('hidden');
+    document.body.style.overflow = '';
+    document.getElementById('paypalSdkStatus').innerHTML = '';
+    // Reset button container
+    document.getElementById('paypalButtonContainer').innerHTML = `
+        <div class="flex items-center gap-2 text-gray-400">
+            <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
+            <span class="text-sm">Loading PayPal...</span>
+        </div>`;
+    lucide.createIcons();
+}
+
+function loadPaypalSdk() {
+    return new Promise((resolve, reject) => {
+        if (paypalSdkLoaded && window.paypal) {
+            resolve();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://www.paypal.com/sdk/js?client-id=' + encodeURIComponent(ppClientId)
+            + '&currency=' + encodeURIComponent(ppCurrency)
+            + '&intent=capture'
+            + '&components=buttons';
+        script.onload = () => {
+            paypalSdkLoaded = true;
+            resolve();
+        };
+        script.onerror = () => reject(new Error('Failed to load PayPal SDK'));
+        document.head.appendChild(script);
+    });
+}
+
+async function openPaypalSdkModal() {
+    if (!ppClientId) {
+        alert('PayPal is not configured. Please contact the store admin.');
+        return;
+    }
+
+    document.getElementById('paypalSdkModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    document.getElementById('paypalSdkStatus').innerHTML = '';
+    document.getElementById('paypalButtonContainer').innerHTML = `
+        <div class="flex items-center gap-2 text-gray-400">
+            <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
+            <span class="text-sm">Loading PayPal...</span>
+        </div>`;
+    lucide.createIcons();
+
+    try {
+        await loadPaypalSdk();
+        renderPaypalButtons();
+    } catch (e) {
+        document.getElementById('paypalButtonContainer').innerHTML = '';
+        document.getElementById('paypalSdkStatus').innerHTML = `
+            <div class="bg-red-50 border border-red-200 rounded-xl p-4 mt-3">
+                <div class="flex items-center gap-2 text-red-700 font-medium">
+                    <i data-lucide="alert-circle" class="w-5 h-5"></i> Could not load PayPal. Please try again.
+                </div>
+            </div>`;
+        lucide.createIcons();
+    }
+}
+
+function renderPaypalButtons() {
+    const container = document.getElementById('paypalButtonContainer');
+    container.innerHTML = ''; // Clear loading spinner
+
+    paypal.Buttons({
+        style: {
+            layout: 'vertical',
+            color: 'gold',
+            shape: 'rect',
+            label: 'paypal',
+            height: 45,
+        },
+        // Called when the buyer clicks the PayPal button
+        createOrder: async function() {
+            try {
+                const formData = new FormData(document.getElementById('checkoutForm'));
+                // Add a marker so backend knows this is SDK flow (not redirect)
+                formData.append('payment_method', 'paypal');
+
+                const resp = await fetch('/payment/paypal/create-order', {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json' },
+                    body: formData
+                });
+                const data = await safeJsonResp(resp);
+
+                if (data.success) {
+                    // Show converted amount if different currency
+                    if (ppCurrency !== 'KES') {
+                        document.getElementById('paypalConvertedAmount').textContent =
+                            'Approximately ' + ppCurrency + ' ' + parseFloat(data.converted_amount || 0).toFixed(2);
+                    }
+                    // Store DB order ID for capture
+                    container.dataset.dbOrderId = data.order_id;
+                    return data.paypal_order_id;
+                } else {
+                    // Show error in modal
+                    document.getElementById('paypalSdkStatus').innerHTML = `
+                        <div class="bg-red-50 border border-red-200 rounded-xl p-4 mt-3">
+                            <div class="flex items-center gap-2 text-red-700 font-medium">
+                                <i data-lucide="alert-circle" class="w-5 h-5"></i> ${data.message || 'Failed to create payment'}
+                            </div>
+                        </div>`;
+                    lucide.createIcons();
+                    throw new Error(data.message || 'Failed to create order');
+                }
+            } catch (err) {
+                if (err.message !== 'Failed to create order') {
+                    document.getElementById('paypalSdkStatus').innerHTML = `
+                        <div class="bg-red-50 border border-red-200 rounded-xl p-4 mt-3">
+                            <div class="flex items-center gap-2 text-red-700 font-medium">
+                                <i data-lucide="alert-circle" class="w-5 h-5"></i> ${err.message || 'Network error. Please try again.'}
+                            </div>
+                        </div>`;
+                    lucide.createIcons();
+                }
+                throw err; // Re-throw so PayPal SDK shows its own error
+            }
+        },
+        // Called when the buyer approves the payment
+        onApprove: async function(data) {
+            const dbOrderId = container.dataset.dbOrderId;
+            document.getElementById('paypalButtonContainer').innerHTML = `
+                <div class="flex items-center justify-center gap-2 text-amber-600 py-2">
+                    <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
+                    <span class="text-sm font-medium">Capturing payment...</span>
+                </div>`;
+            lucide.createIcons();
+
+            try {
+                const resp = await fetch('/payment/paypal/capture', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({
+                        paypal_order_id: data.orderID,
+                        order_id: dbOrderId
+                    })
+                });
+                const result = await safeJsonResp(resp);
+
+                if (result.success) {
+                    document.getElementById('paypalButtonContainer').innerHTML = `
+                        <div class="flex items-center justify-center gap-2 text-green-600 py-2">
+                            <i data-lucide="check-circle" class="w-5 h-5"></i>
+                            <span class="text-sm font-medium">Payment successful!</span>
+                        </div>`;
+                    lucide.createIcons();
+                    setTimeout(() => {
+                        window.location.href = result.redirect || '/order-success';
+                    }, 1000);
+                } else {
+                    document.getElementById('paypalSdkStatus').innerHTML = `
+                        <div class="bg-red-50 border border-red-200 rounded-xl p-4 mt-3">
+                            <div class="flex items-center gap-2 text-red-700 font-medium">
+                                <i data-lucide="alert-circle" class="w-5 h-5"></i> ${result.message || 'Payment capture failed'}
+                            </div>
+                            <button onclick="renderPaypalButtons()" class="mt-2 text-sm text-amber-700 underline font-medium">Try Again</button>
+                        </div>`;
+                    lucide.createIcons();
+                }
+            } catch (e) {
+                document.getElementById('paypalSdkStatus').innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-xl p-4 mt-3">
+                        <div class="flex items-center gap-2 text-red-700 font-medium">
+                            <i data-lucide="alert-circle" class="w-5 h-5"></i> ${e.message || 'Network error. Please try again.'}
+                        </div>
+                        <button onclick="renderPaypalButtons()" class="mt-2 text-sm text-amber-700 underline font-medium">Try Again</button>
+                    </div>`;
+                lucide.createIcons();
+            }
+        },
+        // Called when the buyer cancels
+        onCancel: function() {
+            document.getElementById('paypalSdkStatus').innerHTML = `
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-3">
+                    <div class="flex items-center gap-2 text-amber-700 font-medium">
+                        <i data-lucide="info" class="w-5 h-5"></i> Payment cancelled
+                    </div>
+                    <p class="text-amber-600 text-sm mt-1">You can try again or choose a different payment method.</p>
+                    <button onclick="renderPaypalButtons()" class="mt-2 text-sm text-amber-700 underline font-medium">Try Again</button>
+                </div>`;
+            lucide.createIcons();
+        },
+        // Called on errors
+        onError: function(err) {
+            console.error('PayPal button error:', err);
+            document.getElementById('paypalSdkStatus').innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-xl p-4 mt-3">
+                    <div class="flex items-center gap-2 text-red-700 font-medium">
+                        <i data-lucide="alert-circle" class="w-5 h-5"></i> Something went wrong
+                    </div>
+                    <p class="text-red-600 text-sm mt-1">Please try again or contact support.</p>
+                    <button onclick="renderPaypalButtons()" class="mt-2 text-sm text-amber-700 underline font-medium">Try Again</button>
+                </div>`;
+            lucide.createIcons();
+        }
+    }).render('#paypalButtonContainer');
+}
+
 // Close modals on Escape key
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         closeMpesaModal();
         closeRedirectModal();
+        closePaypalSdkModal();
     }
 });
 </script>
