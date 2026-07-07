@@ -1,7 +1,7 @@
 <?php $order = $order ?? []; $orderItems = $orderItems ?? []; ?>
 <!-- Breadcrumbs -->
 <div class="bg-gray-50 border-b border-gray-100">
-    <div class="w-full px-4 sm:px-6 xl:px-4 py-3">
+    <div class="w-full px-4 sm:px-6 lg:px-8 py-3">
         <nav class="flex items-center gap-2 text-sm text-gray-500">
             <a href="/" class="hover:text-amber-600 transition-colors">Home</a>
             <i data-lucide="chevron-right" class="w-4 h-4"></i>
@@ -13,7 +13,7 @@
 </div>
 
 <?php if (empty($order)): ?>
-<div class="w-full px-4 sm:px-6 xl:px-4 py-20 text-center">
+<div class="w-full px-4 sm:px-6 lg:px-8 py-20 text-center">
     <div class="w-20 h-20 mx-auto mb-4 bg-gray-100 rounded-2xl flex items-center justify-center">
         <i data-lucide="search-x" class="w-10 h-10 text-gray-300"></i>
     </div>

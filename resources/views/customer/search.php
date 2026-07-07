@@ -1,6 +1,6 @@
 <!-- Breadcrumbs -->
 <div class="bg-gray-50 border-b border-gray-100">
-    <div class="w-full px-4 sm:px-6 xl:px-4 py-3">
+    <div class="w-full px-4 sm:px-6 lg:px-8 py-3">
         <nav class="flex items-center gap-2 text-sm text-gray-500">
             <a href="/" class="hover:text-amber-600 transition-colors">Home</a>
             <i data-lucide="chevron-right" class="w-4 h-4"></i>
@@ -9,7 +9,7 @@
     </div>
 </div>
 
-<div class="w-full px-4 sm:px-6 xl:px-4 py-8">
+<div class="w-full px-4 sm:px-6 lg:px-8 py-8">
     <!-- Search Header -->
     <div class="mb-8">
         <h1 class="font-heading text-2xl font-bold text-gray-900">
