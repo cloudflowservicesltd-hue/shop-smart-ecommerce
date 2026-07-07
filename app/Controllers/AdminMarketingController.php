@@ -435,4 +435,96 @@ class AdminMarketingController extends BaseController
 
         echo json_encode(['success' => $sent > 0, 'sent' => $sent, 'failed' => $failed, 'total' => count($phones)]);
     }
+
+    /**
+     * GET /marketing/product-publish
+     * Product publishing page using Publer API.
+     */
+    public function productPublish(): void
+    {
+        $publerKey = Database::selectOne("SELECT value FROM settings WHERE `key` = 'publer_api_key'")['value'] ?? '';
+        $publerConnected = !empty($publerKey);
+        $accounts = [];
+        $products = [];
+
+        if ($publerConnected && class_exists('PublerAPI')) {
+            try {
+                $accounts = PublerAPI::getAccounts();
+            } catch (\Throwable $e) {}
+            try {
+                $products = PublerAPI::getProductsForMarketing(50);
+            } catch (\Throwable $e) {}
+        }
+
+        ob_start();
+        include ROOT_PATH . '/resources/views/admin/marketing/product-publish.php';
+        $content = ob_get_clean();
+        include ROOT_PATH . '/resources/views/layouts/admin.php';
+    }
+
+    /**
+     * POST /marketing/social/connect-publer
+     * Save Publer API key.
+     */
+    public function connectPubler(): void
+    {
+        $key = trim(Request::post('publer_api_key', ''));
+        if (empty($key)) {
+            Session::set('error', 'API key is required');
+            Redirect::to('/marketing/product-publish');
+            return;
+        }
+
+        if (class_exists('PublerAPI')) {
+            PublerAPI::setApiKey($key);
+        } else {
+            // Fallback: save directly
+            $existing = Database::selectOne("SELECT id FROM settings WHERE `key` = ?", ['publer_api_key']);
+            if ($existing) {
+                Database::update('settings', ['value' => $key], 'id = ?', [$existing['id']]);
+            } else {
+                Database::insert('settings', ['`key`' => 'publer_api_key', 'value' => $key]);
+            }
+        }
+
+        Session::set('success', 'Publer API key saved successfully');
+        Redirect::to('/marketing/product-publish');
+    }
+
+    /**
+     * POST /marketing/social/publish-product
+     * Publish a product post via Publer API (called from JS).
+     */
+    public function publishProduct(): void
+    {
+        header('Content-Type: application/json');
+        try {
+            $input = json_decode(file_get_contents('php://input'), true);
+            $text = $input['text'] ?? '';
+            $mediaUrls = $input['media_urls'] ?? [];
+            $platforms = $input['platforms'] ?? [];
+            $accountIds = $input['account_ids'] ?? [];
+            $link = $input['link'] ?? '';
+
+            if (empty($text)) {
+                echo json_encode(['success' => false, 'error' => 'Post content is required']);
+                return;
+            }
+
+            if (class_exists('PublerAPI')) {
+                $result = PublerAPI::createPost([
+                    'text' => $text,
+                    'media_urls' => $mediaUrls,
+                    'platforms' => $platforms,
+                    'account_ids' => $accountIds,
+                    'link' => $link,
+                ]);
+                echo json_encode(['success' => true, 'message' => 'Post published to ' . implode(', ', $platforms), 'data' => $result]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Publer API not available']);
+            }
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
 }

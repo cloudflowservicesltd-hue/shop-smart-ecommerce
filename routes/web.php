@@ -434,7 +434,10 @@ $router->group(['prefix' => 'admin', 'middleware' => 'admin'], function($router)
 
     // Marketing — Social
     $router->get('/marketing/social', 'AdminMarketingController@social');
+    $router->get('/marketing/product-publish', 'AdminMarketingController@productPublish');
     $router->post('/marketing/social/connect', 'AdminMarketingController@socialConnect');
+    $router->post('/marketing/social/connect-publer', 'AdminMarketingController@connectPubler');
+    $router->post('/marketing/social/publish-product', 'AdminMarketingController@publishProduct');
     $router->post('/marketing/social/accounts', 'AdminMarketingController@socialAccounts');
     $router->post('/marketing/social/subaccounts', 'AdminMarketingController@socialSubaccounts');
     $router->post('/marketing/social/pinterest-boards', 'AdminMarketingController@pinterestBoards');
@@ -486,6 +489,13 @@ $router->group(['prefix' => 'admin', 'middleware' => 'admin'], function($router)
     $router->post('/settings/update', 'AdminSettingsController@update');
     $router->get('/settings/cities', 'AdminSettingsController@cities');
     $router->post('/settings/cities', 'AdminSettingsController@cities');
+
+    // SEO & Sitemap
+    $router->get('/seo', 'AdminSeoController@index');
+    $router->post('/seo/update', 'AdminSeoController@update');
+    $router->get('/sitemap', 'AdminSeoController@sitemap');
+    $router->post('/sitemap/save', 'AdminSeoController@saveSitemap');
+    $router->get('/sitemap/generate', 'AdminSeoController@generateSitemapPreview');
 
     // API Integrations
     $router->get('/api-integrations', 'AdminApiIntegrationController@index');

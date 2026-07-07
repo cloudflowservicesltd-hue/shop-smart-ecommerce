@@ -172,6 +172,9 @@ $adminSidebarColor = $adminSettings['login_bg_color'] ?? '#111827';
                     <a href="/admin/marketing/social" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= isActive('/admin/marketing/social') ? 'active text-amber-400' : '' ?>">
                         <i data-lucide="share-2" class="w-4 h-4"></i> Social Publishing
                     </a>
+                    <a href="/admin/marketing/product-publish" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= isActive('/admin/marketing/product-publish') ? 'active text-amber-400' : '' ?>">
+                        <i data-lucide="package" class="w-4 h-4"></i> Product Publishing
+                    </a>
                     <a href="/admin/marketing/whatsapp" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= isActive('/admin/marketing/whatsapp') ? 'active text-amber-400' : '' ?>">
                         <i data-lucide="message-circle" class="w-4 h-4"></i> WhatsApp
                     </a>
@@ -219,6 +222,12 @@ $adminSidebarColor = $adminSettings['login_bg_color'] ?? '#111827';
             </a>
             <a href="/admin/settings/cities" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/settings/cities') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="map-pin" class="w-4 h-4"></i> Cities
+            </a>
+            <a href="/admin/seo" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/seo') ? 'active text-amber-400' : 'hover:text-white' ?>">
+                <i data-lucide="search" class="w-4 h-4"></i> SEO & Meta
+            </a>
+            <a href="/admin/sitemap" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/sitemap') ? 'active text-amber-400' : 'hover:text-white' ?>">
+                <i data-lucide="file-code" class="w-4 h-4"></i> Sitemap
             </a>
 
             <a href="/admin/blogs" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/blogs') ? 'active text-amber-400' : 'hover:text-white' ?>">

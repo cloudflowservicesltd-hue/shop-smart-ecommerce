@@ -17,6 +17,12 @@ $showNewArrivals = ($appearance['show_new_arrivals'] ?? '1') === '1';
 $showPromoBanners = ($appearance['show_promo_banners'] ?? '1') === '1';
 $showTrustBadges = ($appearance['show_trust_badges'] ?? '1') === '1';
 $showNewsletter = ($appearance['show_newsletter'] ?? '1') === '1';
+
+// Category circle size from settings (px), min 48, max 320
+$catCircleSize = (int)(Database::selectOne("SELECT value FROM settings WHERE `key` = 'category_circle_size'")['value'] ?? 80);
+if ($catCircleSize < 48) $catCircleSize = 48;
+if ($catCircleSize > 320) $catCircleSize = 320;
+$catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px' : ($catCircleSize < 160 ? '11px' : '13px'));
 ?>
 
 <!-- ==================== HERO SLIDER ==================== -->
@@ -133,10 +139,10 @@ $showNewsletter = ($appearance['show_newsletter'] ?? '1') === '1';
         <div class="flex gap-5 overflow-x-auto pb-2 scrollbar-hide" style="-ms-overflow-style:none;scrollbar-width:none;">
             <?php foreach ($categories as $index => $cat): ?>
             <a href="/category/<?= e($cat['slug']) ?>" class="shrink-0 group">
-                <div class="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-100 group-hover:border-amber-400 group-hover:shadow-lg group-hover:shadow-amber-100/50 group-hover:scale-110 transition-all duration-300 relative">
+                <div class="rounded-full overflow-hidden border-2 border-gray-100 group-hover:border-amber-400 group-hover:shadow-lg group-hover:shadow-amber-100/50 group-hover:scale-110 transition-all duration-300 relative" style="width:<?= $catCircleSize ?>px;height:<?= $catCircleSize ?>px;">
                     <img src="<?= $cat['image'] ?? '/uploads/no-image-sm.jpg' ?>" alt="<?= e($cat['name']) ?>" class="w-full h-full object-cover">
                     <div class="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <p class="text-[10px] font-bold text-white text-center leading-tight px-1 drop-shadow-md"><?= e($cat['name']) ?></p>
+                        <p class="font-bold text-white text-center leading-tight px-1.5 drop-shadow-md" style="font-size:<?= $catCircleFontSize ?>"><?= e($cat['name']) ?></p>
                     </div>
                 </div>
             </a>
