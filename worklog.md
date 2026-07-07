@@ -324,3 +324,24 @@ Stage Summary:
 - Payment verification on both callback and IPN prevents false positives
 - Admin can configure Pesapal credentials and test connection from main Settings page
 - Legacy key names (`pesapal_key`/`pesapal_secret`/`pesapal_env`) maintained for backward compatibility
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Update payment settings, fix email spam error
+
+Work Log:
+- Rewrote IntaSend section in payment settings: publishable key, secret key (eye toggle), test mode switch, setup instructions
+- Rewrote Pesapal section: consumer key/secret (eye toggle), test mode switch, IPN ID, setup instructions
+- Updated AdminPaymentSettingsController saveIntasend() and savePesapal() to save new keys and sync to old keys + .env
+- Added syncToEnv() helper method
+- Fixed email SMTP spam: force From email = SMTP username for ALL servers (was Gmail-only)
+- Added X-Mailer and Message-ID headers for anti-spam
+- Updated mail() fallback to also force matching From email
+- Updated error diagnostic messages
+
+Stage Summary:
+- Payment settings page now properly uses keys that match what IntaSendAPI and PesapalAPI read
+- Keys are synced to both new and old names + .env for backward compatibility
+- Email spam fix: From email always matches the authenticated SMTP username
+- Pushed as commit 81b8a21
