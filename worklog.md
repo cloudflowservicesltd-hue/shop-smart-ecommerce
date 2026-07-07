@@ -1,0 +1,277 @@
+---
+## Agent 12-14: Referral Links, Cities Management, Checkout City from DB
+
+### Task 12: Referral Link → Redirect to Register + Save Referral Code
+
+**Files created:**
+- `app/Controllers/ReferralController.php` — Handles `GET /ref/{code}`, saves code to `$_SESSION['referral_code']` and redirects to `/register?ref={code}`
+
+**Files modified:**
+- `routes/web.php`:
+  - Added `ALTER TABLE users ADD COLUMN referral_code` in self-heal block
+  - Added route: `$router->get('/ref/{code}', 'ReferralController@handle')`
+- `app/Controllers/AuthController.php`:
+  - After `Auth::register()`, if a valid referral code was found (from input/session/cookie), it is now saved to the `users.referral_code` column via `Database::update`
+  - Session referral code is cleared with `unset($_SESSION['referral_code'])` after registration
+- `resources/views/auth/register.php`:
+  - Added "referred by" indicator banner that shows when `?ref=` query param is present, displaying the referral code with a gift icon
+
+### Task 13: Admin Settings Page to Add/Manage Cities
+
+**Files created:**
+- `resources/views/admin/cities.php` — Admin page with:
+  - Add new city form (name, shipping cost, sort order, active checkbox)
+  - Cities table with name, shipping cost, status badge, sort order, edit/delete actions
+  - Edit city modal (JS-driven) for inline editing
+  - Delete confirmation on delete
+
+**Files modified:**
+- `routes/web.php`:
+  - Added `cities` table creation in self-heal block (with `shipping_cost` column)
+  - Added routes: `GET/POST /admin/settings/cities` → `AdminSettingsController@cities`
+- `app/Controllers/AdminSettingsController.php`:
+  - Added `cities()` method handling GET (list) and POST (add/edit/delete via `action` parameter)
+- `resources/views/layouts/admin.php`:
+  - Added "Cities" sub-menu item under Settings in admin sidebar
+
+### Task 14: Checkout City from Database
+
+**Files modified:**
+- `resources/views/customer/checkout.php`:
+  - Replaced `shipping_cities` query with `cities` table query (with fallback to `shipping_cities` then hardcoded list)
+  - City dropdown now includes `data-shipping-cost` attributes per option
+  - Added JS `updateShippingDisplay()` that dynamically updates shipping cost, tax, and total when city changes
+  - Added IDs (`shippingCostDisplay`, `orderTaxDisplay`, `orderTotalDisplay`) to order summary elements
+- `app/Controllers/CheckoutPageController.php`:
+  - Updated `loadCheckoutData()` to look up shipping cost from `cities` table based on the selected city in session
+  - Applies free shipping threshold check
+---
+## Agent 19-20: Categories Circles + Home Search Verification
+
+### Task 19: Frontend Categories in Circles with Horizontal Sliding
+
+**Files modified:**
+- `resources/views/customer/categories.php`:
+  - Replaced top-level categories grid (`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4`) with horizontal sliding circle layout (`flex gap-6 overflow-x-auto snap-x snap-mandatory scrollbar-thin`)
+  - Each category is now a 128px circle (`w-28 h-28 rounded-full`) with `border-4`, hover scale/amber border/shadow effects, and snap-start alignment
+  - Replaced sub-categories grid (`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6`) with horizontal sliding cards (`flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-thin`)
+  - Sub-category cards are shrink-0 w-40 with snap-start for smooth mobile scrolling
+  - "Sub-Categories" heading preserved
+
+### Task 20: Home Search Across Categories, Brands, AND Products
+
+**Verification results — no changes needed:**
+- `app/Controllers/ProductController.php` — `search()` method already queries products, categories (`$searchCategories`), and brands (`$searchBrands`)
+- `resources/views/customer/search.php` — Already displays all three result types: Categories section, Brands section, and Products grid with pagination
+- `resources/views/layouts/app.php` — Desktop and mobile search forms both submit to `/search` via GET with `?q=` parameter — working correctly
+
+---
+## Agent 21-22: Login Editable Content + Product Image Preview (Verification)
+
+All three sub-tasks were **already implemented** by previous agents. No code changes were needed.
+
+### Task 22a: Admin can edit login page content — Already Done
+- `resources/views/admin/settings.php` already contains a "Login Page Branding" section (lines 72–109) with:
+  - Login Logo (file upload with preview/remove)
+  - App Name (`login_title`)
+  - Subtitle (`login_subtitle`)
+  - Description (`login_description`)
+  - Login Sidebar Color (`login_bg_color`)
+
+### Task 22b: Login page fetches logo/app name from DB — Already Done
+- `resources/views/auth/login.php` already queries `login_logo`, `login_title`, `login_subtitle`, `login_description`, `login_bg_color` from the `settings` table at the top and uses `<?= e($loginTitle) ?>`, `<?= e($loginLogo) ?>`, etc. throughout the HTML.
+- `resources/views/auth/forgot-password.php` has identical DB queries and dynamic variable usage.
+
+### Task 21: Admin Product Image Preview on Upload — Already Done
+- `resources/views/admin/product-form.php` already has JavaScript image preview (lines 173–196):
+  - Creates a dynamic `#imagePreviewContainer` grid
+  - Renders thumbnail previews for each selected file via FileReader
+  - Includes per-image remove buttons
+  - Existing product images shown with delete functionality on edit
+---
+Task ID: 1
+Agent: Main Agent
+Task: Shipping address optional, PayPal card+login, referral earnings page
+
+Work Log:
+- Made delivery address optional in checkout: removed `required` attribute from address input, removed `empty($shipping['address'])` validation checks in CheckoutPageController payment() and review() methods
+- Updated PayPal payment method description from "Pay securely with PayPal" to "Pay via card or PayPal account" with "Cards Accepted" badge
+- Added `shipping_preference: NO_SHIPPING` to PayPal API application_context in both order creation spots (checkout + re-pay) to prevent PayPal from collecting duplicate shipping address
+- Created dedicated referral earnings page at /account/referral with: referral link copy, earnings stats (3 cards), withdrawal request form, withdrawal history table, referred users table
+- Added referralPage() method to AccountController with stats, withdrawal history, and referred users queries
+- Created resources/views/customer/account-referral.php view with full layout
+- Added GET /account/referral route to routes/web.php
+- Added "Referral Earnings" sidebar link to account dashboard with balance badge
+- Added "View Details →" link from dashboard referral section to dedicated page
+- Resolved git rebase conflicts and pushed to GitHub
+
+Stage Summary:
+- 4 files modified: checkout.php, CheckoutPageController.php, CustomerPaymentController.php, account.php, AccountController.php, routes/web.php
+- 1 file created: resources/views/customer/account-referral.php
+- All changes pushed to GitHub successfully
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Extract uploaded zip, sync workspace, category circle size control
+
+Work Log:
+- Extracted app (1).zip to /tmp/extracted-app/
+- Identified 5 new files only in zip: ReferralController.php, cities.php, withdrawals.php, 3 marketing views
+- Identified ~15 differing files between zip and workspace
+- Copied all new files and differing files from zip to workspace
+- Re-applied all recent changes that were overwritten by zip extraction:
+  - Shipping address optional (checkout view + CheckoutPageController validation)
+  - PayPal card+login support (description text + shipping_preference: NO_SHIPPING in API)
+  - Referral earnings page (referralPage method + route + sidebar link + view details link)
+- Increased default category circle size from 128px (w-28 h-28) to 160px (w-40 h-40)
+- Added category_circle_size setting to admin Settings page with 5 options:
+  - Small (96px), Medium (128px), Large (160px), Extra Large (192px), 2X Large (224px)
+- Updated categories.php to read size from database and apply dynamic Tailwind classes
+- Added category_circle_size to AdminSettingsController save fields
+- All changes committed and pushed to GitHub
+
+Stage Summary:
+- 25 files changed: 5 new, 20 modified
+- Product image zoom + lightbox modal restored from server files
+- Categories circle sliding layout restored from server files
+- Category circle size now configurable by admin (default: Large 160px)
+---
+Task ID: 1
+Agent: Main Agent
+Task: Switch PayPal from redirect flow to JS SDK popup with card + PayPal buttons
+
+Work Log:
+- Analyzed existing PayPal redirect flow (server-side redirect to paypal.com/checkoutnow)
+- Added two new backend endpoints: `paypalCreateOrder()` and `paypalCapture()` in CustomerPaymentController.php
+- Added PayPal JS SDK modal HTML to checkout.php with PayPal branding, amount display, and button container
+- Added PayPal JS SDK modal HTML to order-pay.php for re-payment flow
+- Implemented `loadPaypalSdk()`, `openPaypalSdkModal()`, `renderPaypalButtons()`, `closePaypalSdkModal()` JS functions
+- Updated `initiatePayment()` in checkout.php to route PayPal to new SDK modal
+- Updated `processOrderPayment()` in order-pay.php to route PayPal to new SDK modal
+- Added routes: POST /payment/paypal/create-order, POST /payment/paypal/capture
+- SDK loaded dynamically with `client-id` and `currency` from database settings
+- PayPal buttons use createOrder/onApprove/onCancel/onError callbacks
+- Old redirect flow (/payment/paypal/callback) preserved for backward compatibility
+- Pushed to GitHub (commit ba76058)
+
+Stage Summary:
+- PayPal checkout now opens a popup with "Pay with Debit or Credit Card" and "Pay with PayPal" options
+- The PayPal JS SDK is loaded on-demand (only when PayPal is selected)
+- Backend handles order creation + capture via new REST endpoints
+- Both checkout flow and order re-payment flow updated
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Update .env, add receipt with logo to order success page, category names inside circles
+
+Work Log:
+- Updated .env file with MySQL DB config (uydirsqz_shop), AI enabled with gpt-4, Africa/Nairobi timezone
+- Rewrote order-success.php as a proper receipt with: store logo, store name/address/phone, receipt header, item table with thumbnails, subtotal/discount/tax/shipping/total breakdown, print button
+- Added print CSS that isolates the receipt for 80mm thermal printing
+- Updated home.php categories: category name now rendered inside the circle as a dark overlay with white text
+- POS receipt already had logo support (confirmed)
+- Pushed to GitHub (commit cbdf106)
+
+Stage Summary:
+- .env updated with full config
+- Order success page now displays a receipt card with logo, items table, totals
+- Frontend category circles show name inside the circle (white bold text on dark overlay)
+- Print button on order success prints just the receipt on 80mm paper
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Category size control, Publer marketing, SEO page, sitemap editor
+
+Work Log:
+- Changed admin category_circle_size from dropdown to number input (48-320px)
+- Applied dynamic size on frontend home.php: reads from settings, uses inline style, auto-scales font
+- Created app/Core/PublerAPI.php: API key management, account fetching, post creation, product-to-post formatter
+- Created admin/marketing/product-publish.php: 3-step flow (select products, compose post, choose platforms), auto-generates post text with emojis/price/link, search products, preview modal
+- Added productPublish(), connectPubler(), publishProduct() to AdminMarketingController
+- Created AdminSeoController with index(), update(), sitemap(), saveSitemap(), generateSitemapPreview()
+- Created admin/seo.php: meta title/description/keywords, OG tags, Twitter card, Google Analytics/GTM, Facebook Pixel, robots.txt
+- Created admin/sitemap.php: manual XML editor, auto-generate from DB (products, categories, brands, static pages), preview before save
+- Added sidebar links: Product Publishing (under Marketing), SEO & Meta, Sitemap (under Settings)
+- Added routes for all new pages and API endpoints
+- Pushed to GitHub (commit d9c9952)
+
+Stage Summary:
+- Admin can now enter any category circle size (48-320px) and it applies on frontend
+- Publer API integration: admin can select products, auto-generate social posts, publish to connected social accounts
+- Full SEO management: meta tags, Open Graph, Twitter cards, analytics tracking, robots.txt
+- Sitemap editor: manual editing + auto-generate from database content
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Make home and frontend pages edge-to-edge on desktop
+
+Work Log:
+- Identified padding pattern `px-4 sm:px-6 lg:px-8` used across layout and all customer views (49 total instances)
+- Changed pattern to `px-4 sm:px-6 xl:px-0` everywhere
+- Layout (app.php): top bar, nav, category nav, mobile menu, footer — 5 instances
+- Home page: hero content, categories, featured products, promo banners, new arrivals, testimonials, newsletter, trust badges — 8 instances
+- Other customer pages (products, categories, product-detail, cart, checkout, account, orders, wishlist, blog, search, page, etc.) — 36 instances across 19 files
+- Committed and pushed to GitHub (20942c8)
+
+Stage Summary:
+- On mobile: 16px padding each side (unchanged)
+- On sm (640px+): 24px padding each side (unchanged)
+- On lg (1024px+): 24px padding (reduced from 32px since lg:px-8 removed)
+- On xl (1280px+): 0 padding — fully edge-to-edge
+- 21 files changed, 56 insertions, 56 deletions
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Revert frontend padding + Add Make.com API integration
+
+Work Log:
+- Verified all 49 instances across 21 files reverted to original px-4 sm:px-6 lg:px-8
+- Created app/Core/MakeAPI.php: webhook sending, event triggers, Make REST API, logging
+- Added Make.com section to admin/settings.php: webhook URL, API key (optional), 7 event toggles, test button, view logs link
+- Added makeTestWebhook() and makeWebhookLogs() to AdminSettingsController.php
+- Added make_webhook_log table to self-heal in routes/web.php
+- Added sidebar link "Make.com Logs" under Settings
+- Added routes: POST /admin/settings/make-test, GET /admin/settings/make-logs
+- Committed and pushed (3b05c73)
+
+Stage Summary:
+- Frontend pages: fully reverted to original padding (categories section stays full-width)
+- Make.com: admin can enter webhook URL + API key, toggle 7 event types, test connection, view logs
+- Supported events: new_order, order_paid, order_shipped, new_product, product_updated, new_customer, low_stock
+---
+Task ID: 3
+Agent: IntaSend Integration Agent
+Task: Integrate IntaSend payment gateway
+
+Work Log:
+- Added `intasend/intasend-php` to composer.json (requires `composer install` to download SDK)
+- Added .env keys: `INTASEND_PUBLISHABLE_KEY` and `INTASEND_TEST_ENVIRONMENT`
+- Created `app/Core/IntaSendAPI.php` service class with:
+  - `getCredentials()` — reads from DB settings, falls back to .env
+  - `isConfigured()` — checks if publishable key exists
+  - `createCheckout($order, $redirectUrl)` — uses IntaSend SDK if available, falls back to direct API
+  - `verifyPayment($trackingId)` — verifies payment state via API
+- Added IntaSend admin settings section to `resources/views/admin/settings.php`:
+  - Publishable Key input, Secret Key (password) input, Test Mode toggle
+  - Setup instructions with callback URL guidance
+- Updated `AdminSettingsController.php` to save `intasend_publishable_key`, `intasend_secret`, `intasend_test_mode`
+- Added route `GET /payment/intasend/checkout/{id}` to `routes/web.php`
+- Updated `CustomerPaymentController.php`:
+  - Replaced raw curl IntaSend code in both `initiate()` and `initiateOrderPay()` with `IntaSendAPI::createCheckout()`
+  - Updated `intasendCallback()` to verify payment via API before marking order as paid, with transaction recording
+  - Added `intasendCheckout($orderId)` method for direct checkout URL access
+- Updated payment method descriptions in `checkout.php` and `order-pay.php` to show "M-Pesa, card & bank transfers"
+- Pushed to GitHub (commit 9608d70)
+
+Stage Summary:
+- 1 file created: `app/Core/IntaSendAPI.php`
+- 7 files modified: composer.json, .env, AdminSettingsController.php, CustomerPaymentController.php, admin/settings.php, checkout.php, order-pay.php, routes/web.php
+- IntaSend payment gateway fully integrated with SDK support + direct API fallback
+- Admin can configure IntaSend via Settings page (publishable key, secret key, test mode toggle)
+- Payment verification on callback prevents false positives
+- `composer install` needed on server to download the IntaSend SDK
