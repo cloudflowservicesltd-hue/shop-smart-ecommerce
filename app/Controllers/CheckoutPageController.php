@@ -69,7 +69,7 @@ class CheckoutPageController extends BaseController
         $tax = $afterDiscount * ($taxRate / 100);
         $total = $afterDiscount + $tax + $shippingCost;
 
-        return [$cartItems, $subtotal, $totalItems, $tax, $total, $couponDiscount, $shippingCost];
+        return [$cartItems, $subtotal, $totalItems, $taxRate, $tax, $total, $couponDiscount, $shippingCost];
     }
 
     /**
@@ -87,7 +87,7 @@ class CheckoutPageController extends BaseController
         $shipping = Session::get('checkout_shipping', []);
         if (empty($shipping)) return ['success' => false, 'message' => 'Missing shipping info'];
 
-        [$cartItems, $subtotal, $totalItems, $taxRate, $computedTotal, $couponDiscount, $shippingCost] = $this->loadCheckoutData();
+        [$cartItems, $subtotal, $totalItems, $taxRate, $tax, $computedTotal, $couponDiscount, $shippingCost] = $this->loadCheckoutData();
 
         if (empty($cartItems)) return ['success' => false, 'message' => 'Cart is empty'];
 
@@ -187,7 +187,7 @@ class CheckoutPageController extends BaseController
     protected function renderCheckout(string $step): void
     {
         if (!Auth::check()) { Session::flash('error', 'Please login to checkout'); Redirect::to('/login'); }
-        [$cartItems, $subtotal, $totalItems, $tax, $total, $couponDiscount, $shippingCost] = $this->loadCheckoutData();
+        [$cartItems, $subtotal, $totalItems, $taxRate, $tax, $total, $couponDiscount, $shippingCost] = $this->loadCheckoutData();
         $shipping = Session::get('checkout_shipping', []);
         $currentStep = $step;
         ob_start();
