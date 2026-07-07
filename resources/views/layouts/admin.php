@@ -223,6 +223,9 @@ $adminSidebarColor = $adminSettings['login_bg_color'] ?? '#111827';
             <a href="/admin/settings/cities" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/settings/cities') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="map-pin" class="w-4 h-4"></i> Cities
             </a>
+            <a href="/admin/settings/make-logs" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/settings/make-logs') ? 'active text-amber-400' : 'hover:text-white' ?>">
+                <i data-lucide="workflow" class="w-4 h-4"></i> Make.com Logs
+            </a>
             <a href="/admin/seo" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/seo') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="search" class="w-4 h-4"></i> SEO & Meta
             </a>

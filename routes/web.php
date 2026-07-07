@@ -119,6 +119,17 @@ try {
         $code = 'REF' . strtoupper(substr(md5($u['id'] . time() . mt_rand()), 0, 8));
         try { Database::insert('referrals', ['referrer_id' => $u['id'], 'referral_code' => $code, 'created_at' => date('Y-m-d H:i:s')]); } catch(\Throwable $e) {}
     }
+    $db->exec("CREATE TABLE IF NOT EXISTS `make_webhook_log` (
+        `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        `event` VARCHAR(100) DEFAULT NULL,
+        `url` VARCHAR(500) DEFAULT NULL,
+        `payload` LONGTEXT DEFAULT NULL,
+        `http_code` INT DEFAULT NULL,
+        `response` LONGTEXT DEFAULT NULL,
+        `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX `idx_event` (`event`),
+        INDEX `idx_created` (`created_at`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 } catch (\Throwable $e) {
     @file_put_contents(ROOT_PATH . '/storage/logs/pos-api.log', date('Y-m-d H:i:s') . " | SELF-HEAL ERROR: " . $e->getMessage() . "\n", FILE_APPEND);
 }
@@ -489,6 +500,8 @@ $router->group(['prefix' => 'admin', 'middleware' => 'admin'], function($router)
     $router->post('/settings/update', 'AdminSettingsController@update');
     $router->get('/settings/cities', 'AdminSettingsController@cities');
     $router->post('/settings/cities', 'AdminSettingsController@cities');
+    $router->post('/settings/make-test', 'AdminSettingsController@makeTestWebhook');
+    $router->get('/settings/make-logs', 'AdminSettingsController@makeWebhookLogs');
 
     // SEO & Sitemap
     $router->get('/seo', 'AdminSeoController@index');

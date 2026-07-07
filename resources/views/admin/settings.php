@@ -189,6 +189,77 @@
             </div>
         </div>
 
+        <!-- Make.com Integration -->
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <h3 class="font-medium mb-4 flex items-center gap-2"><i data-lucide="workflow" class="w-5 h-5 text-amber-600"></i> Make.com Integration</h3>
+            <p class="text-sm text-gray-500 mb-4">Connect to Make.com to automate workflows — send orders, products, and events to your Make scenarios via webhooks.</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Webhook URL</label>
+                    <input type="url" name="make_webhook_url" value="<?= e($settings['make_webhook_url'] ?? '') ?>" placeholder="https://hook.make.com/your-unique-webhook-id" class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm font-mono">
+                    <p class="mt-1 text-xs text-gray-400">Create a webhook in <a href="https://www.make.com" target="_blank" class="text-amber-600 hover:underline">make.com</a> → New Scenario → Add module → Webhooks → Custom webhook. Copy the URL here.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Make.com API Key <span class="text-xs text-gray-400">(optional)</span></label>
+                    <div class="flex gap-3">
+                        <input type="password" name="make_api_key" value="<?= e($settings['make_api_key'] ?? '') ?>" placeholder="Enter your Make.com API key" class="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm font-mono">
+                        <button type="button" onclick="const i=this.previousElementSibling;i.type=i.type==='password'?'text':'password'" class="px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors" title="Toggle visibility">
+                            <i data-lucide="eye" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <p class="mt-1 text-xs text-gray-400">Optional. Used to list/run scenarios via API. Get from <a href="https://www.make.com/en/profile/api" target="_blank" class="text-amber-600 hover:underline">make.com/en/profile/api</a></p>
+                </div>
+                <div class="border-t border-gray-100 pt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-3">Webhook Events</label>
+                    <p class="text-xs text-gray-400 mb-3">Choose which store events should be sent to your Make.com webhook.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <?php
+                        $makeEvents = [
+                            'new_order' => '🛒 New Order Placed',
+                            'order_paid' => '💳 Order Payment Received',
+                            'order_shipped' => '🚚 Order Marked as Shipped',
+                            'new_product' => '📦 New Product Added',
+                            'product_updated' => '✏️ Product Updated',
+                            'new_customer' => '👤 New Customer Registered',
+                            'low_stock' => '⚠️ Low Stock Alert',
+                        ];
+                        foreach ($makeEvents as $key => $label):
+                            $enabled = ($settings['make_event_' . $key] ?? '0') === '1';
+                        ?>
+                        <label class="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                            <input type="checkbox" name="make_event_<?= $key ?>" value="1" <?= $enabled ? 'checked' : '' ?> class="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500">
+                            <span class="text-sm"><?= $label ?></span>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <div class="bg-amber-50 border border-amber-100 rounded-lg p-3">
+                    <p class="text-xs text-amber-800"><i data-lucide="lightbulb" class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5"></i> <strong>How it works:</strong> When an enabled event occurs (e.g. new order), the store sends a JSON payload to your webhook URL. In Make.com, you can then process this data — post to social media, send emails, update spreadsheets, notify Slack, etc.</p>
+                </div>
+                <div class="flex items-center gap-3 pt-2">
+                    <button type="button" onclick="testMakeWebhook()" id="makeTestBtn" class="inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
+                        <i data-lucide="zap" class="w-4 h-4"></i> Test Webhook
+                    </button>
+                    <a href="/admin/settings/make-logs" class="inline-flex items-center gap-2 text-amber-600 hover:text-amber-800 text-sm font-medium transition-colors">
+                        <i data-lucide="file-text" class="w-4 h-4"></i> View Webhook Logs
+                    </a>
+                </div>
+                <script>
+                function testMakeWebhook() {
+                    const btn = document.getElementById('makeTestBtn');
+                    btn.disabled = true;
+                    btn.innerHTML = '<svg class="animate-spin w-4 h-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Testing...';
+                    const fd = new FormData();
+                    fd.append('webhook_url', document.querySelector('input[name="make_webhook_url"]').value);
+                    fetch('/admin/settings/make-test', { method: 'POST', body: fd })
+                        .then(r => r.text())
+                        .then(() => { window.location.href = '/admin/settings'; })
+                        .catch(() => { btn.disabled = false; btn.innerHTML = '<i data-lucide="zap" class="w-4 h-4"></i> Test Webhook'; lucide.createIcons(); });
+                }
+                </script>
+            </div>
+        </div>
+
         <!-- Notifications -->
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
             <h3 class="font-medium mb-4 flex items-center gap-2"><i data-lucide="bell" class="w-5 h-5 text-amber-600"></i> Notifications</h3>

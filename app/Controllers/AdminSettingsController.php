@@ -185,6 +185,14 @@ class AdminSettingsController extends BaseController
         // Blotato API key
         $upsert('blotato_api_key', Request::post('blotato_api_key', ''), 'blotato');
 
+        // Make.com integration
+        $upsert('make_webhook_url', Request::post('make_webhook_url', ''), 'make');
+        $upsert('make_api_key', Request::post('make_api_key', ''), 'make');
+        $makeEventFields = ['make_event_new_order','make_event_order_paid','make_event_order_shipped','make_event_new_product','make_event_product_updated','make_event_new_customer','make_event_low_stock'];
+        foreach ($makeEventFields as $f) {
+            $upsert($f, Request::post($f, '0'), 'make');
+        }
+
         // Color settings
         $colorFields = ['primary_color','primary_hover_color','header_bg_color','footer_bg_color'];
         foreach ($colorFields as $f) {
@@ -262,6 +270,133 @@ class AdminSettingsController extends BaseController
         $breadcrumbs = [['Settings', '/admin/settings'], ['Cities', '']];
         ob_start();
         include ROOT_PATH . '/resources/views/admin/cities.php';
+        $content = ob_get_clean();
+        include ROOT_PATH . '/resources/views/layouts/admin.php';
+    }
+
+    /**
+     * Test Make.com webhook connection.
+     * Route: POST /admin/settings/make-test
+     */
+    public function makeTestWebhook(): void
+    {
+        $url = Request::post('webhook_url', '');
+        if (empty($url)) {
+            $url = MakeAPI::getWebhookUrl();
+        }
+
+        $result = MakeAPI::testConnection($url);
+
+        if ($result['success']) {
+            Session::flash('success', '✅ Webhook test successful! HTTP ' . ($result['http_code'] ?? '200') . '. Check your Make.com scenario for the test data.');
+        } else {
+            Session::flash('error', '❌ Webhook test failed: ' . ($result['error'] ?? 'Unknown error'));
+        }
+
+        Redirect::to('/admin/settings');
+    }
+
+    /**
+     * View Make.com webhook logs.
+     * Route: GET /admin/settings/make-logs
+     */
+    public function makeWebhookLogs(): void
+    {
+        require_once ROOT_PATH . '/app/Core/MakeAPI.php';
+
+        $logs = MakeAPI::getWebhookLogs(100);
+        $breadcrumbs = [['Settings', '/admin/settings'], ['Make.com Webhook Logs', '']];
+
+        ob_start();
+        ?>
+        <div class="space-y-6">
+            <div class="flex items-center justify-between">
+                <h1 class="font-heading font-semibold text-xl text-gray-900">Make.com Webhook Logs</h1>
+                <div class="flex items-center gap-3">
+                    <a href="/admin/settings" class="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                        <i data-lucide="settings" class="w-4 h-4"></i> Settings
+                    </a>
+                    <button onclick="if(confirm('Clear logs older than last 100?')){fetch('/admin/settings/make-clear-logs',{method:'POST',headers:{'Content-Type':'application/json'}}).then(()=>location.reload())}" class="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-800 transition-colors">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i> Clear Old
+                    </button>
+                </div>
+            </div>
+
+            <?php if (empty($logs)): ?>
+            <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-12 text-center">
+                <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-2xl flex items-center justify-center">
+                    <i data-lucide="inbox" class="w-8 h-8 text-gray-300"></i>
+                </div>
+                <p class="text-gray-500">No webhook logs yet. Enable events in Settings and they will appear here.</p>
+            </div>
+            <?php else: ?>
+            <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                                <th class="text-left px-4 py-3 font-medium text-gray-600">Event</th>
+                                <th class="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                                <th class="text-left px-4 py-3 font-medium text-gray-600">URL</th>
+                                <th class="text-left px-4 py-3 font-medium text-gray-600">Time</th>
+                                <th class="text-left px-4 py-3 font-medium text-gray-600">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50">
+                            <?php foreach ($logs as $log): ?>
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="px-4 py-3">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 rounded-lg text-xs font-medium text-gray-700"><?= e($log['event'] ?: '—') ?></span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <?php if (($log['http_code'] ?? 0) >= 200 && ($log['http_code'] ?? 0) < 300): ?>
+                                    <span class="inline-flex items-center gap-1 text-green-700 text-xs font-medium">
+                                        <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> <?= $log['http_code'] ?> OK
+                                    </span>
+                                    <?php else: ?>
+                                    <span class="inline-flex items-center gap-1 text-red-600 text-xs font-medium">
+                                        <i data-lucide="x-circle" class="w-3.5 h-3.5"></i> <?= $log['http_code'] ?? 'ERR' ?>
+                                    </span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="px-4 py-3 max-w-xs truncate text-xs text-gray-500 font-mono" title="<?= e($log['url'] ?? '') ?>"><?= e($log['url'] ?? '') ?></td>
+                                <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap"><?= e($log['created_at'] ?? '') ?></td>
+                                <td class="px-4 py-3">
+                                    <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="text-xs text-amber-600 hover:text-amber-800 font-medium">View</button>
+                                    <div class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onclick="if(event.target===this)this.classList.add('hidden')">
+                                        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-auto p-6">
+                                            <div class="flex items-center justify-between mb-4">
+                                                <h3 class="font-semibold text-gray-900">Webhook Details</h3>
+                                                <button onclick="this.closest('.fixed').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                                                    <i data-lucide="x" class="w-5 h-5"></i>
+                                                </button>
+                                            </div>
+                                            <div class="space-y-4">
+                                                <div>
+                                                    <h4 class="text-xs font-medium text-gray-500 mb-1">Event</h4>
+                                                    <p class="text-sm font-mono"><?= e($log['event']) ?></p>
+                                                </div>
+                                                <div>
+                                                    <h4 class="text-xs font-medium text-gray-500 mb-1">Payload</h4>
+                                                    <pre class="text-xs bg-gray-50 p-3 rounded-lg overflow-auto max-h-48 text-gray-700"><?= e($log['payload'] ?? '') ?></pre>
+                                                </div>
+                                                <div>
+                                                    <h4 class="text-xs font-medium text-gray-500 mb-1">Response</h4>
+                                                    <pre class="text-xs bg-gray-50 p-3 rounded-lg overflow-auto max-h-48 text-gray-700"><?= e($log['response'] ?? '') ?></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php
         $content = ob_get_clean();
         include ROOT_PATH . '/resources/views/layouts/admin.php';
     }
