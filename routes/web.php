@@ -340,6 +340,9 @@ $router->post('/payment/paypal/create-order', 'CustomerPaymentController@paypalC
 $router->post('/payment/paypal/capture', 'CustomerPaymentController@paypalCapture');
 $router->get('/payment/stripe/success', 'CustomerPaymentController@stripeSuccess');
 $router->get('/payment/pesapal/redirect', 'CustomerPaymentController@pesapalRedirect');
+$router->get('/payment/pesapal/checkout/{order_id}', 'CustomerPaymentController@pesapalCheckout');
+$router->get('/payment/pesapal/callback', 'CustomerPaymentController@pesapalCallback');
+$router->post('/payment/pesapal/ipn', 'CustomerPaymentController@pesapalIPN');
 
 // Checkout pages
 $router->get('/checkout', 'CheckoutPageController@index');
@@ -503,6 +506,7 @@ $router->group(['prefix' => 'admin', 'middleware' => 'admin'], function($router)
     $router->post('/settings/cities', 'AdminSettingsController@cities');
     $router->post('/settings/make-test', 'AdminSettingsController@makeTestWebhook');
     $router->get('/settings/make-logs', 'AdminSettingsController@makeWebhookLogs');
+    $router->post('/settings/pesapal-test', 'AdminSettingsController@pesapalTestConnection');
 
     // SEO & Sitemap
     $router->get('/seo', 'AdminSeoController@index');

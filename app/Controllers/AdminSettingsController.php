@@ -198,6 +198,16 @@ class AdminSettingsController extends BaseController
             $upsert($f, Request::post($f, '0'), 'make');
         }
 
+        // Pesapal settings
+        $upsert('pesapal_consumer_key', Request::post('pesapal_consumer_key', ''), 'payments');
+        $upsert('pesapal_consumer_secret', Request::post('pesapal_consumer_secret', ''), 'payments');
+        $pesapalTestMode = Request::post('pesapal_test_mode') === '1' ? '1' : '0';
+        $upsert('pesapal_test_mode', $pesapalTestMode, 'payments');
+        // Also sync legacy keys for backward compatibility
+        $upsert('pesapal_key', Request::post('pesapal_consumer_key', ''), 'payments');
+        $upsert('pesapal_secret', Request::post('pesapal_consumer_secret', ''), 'payments');
+        $upsert('pesapal_env', $pesapalTestMode === '1' ? 'sandbox' : 'production', 'payments');
+
         // Color settings
         $colorFields = ['primary_color','primary_hover_color','header_bg_color','footer_bg_color'];
         foreach ($colorFields as $f) {
@@ -299,6 +309,43 @@ class AdminSettingsController extends BaseController
         }
 
         Redirect::to('/admin/settings');
+    }
+
+    /**
+     * Test Pesapal connection.
+     * Route: POST /admin/settings/pesapal-test
+     */
+    public function pesapalTestConnection(): void
+    {
+        header('Content-Type: application/json');
+
+        // Temporarily save the posted settings so PesapalAPI can read them
+        $upsert = function($key, $value, $group = 'payments') {
+            $existing = Database::selectOne("SELECT id FROM settings WHERE `key` = ?", [$key]);
+            if ($existing) {
+                Database::update('settings', ['value' => $value, 'updated_at' => date('Y-m-d H:i:s')], '`key` = ?', [$key]);
+            } else {
+                Database::insert('settings', ['key' => $key, 'value' => $value, 'group_name' => $group, 'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s')]);
+            }
+        };
+
+        $consumerKey    = Request::post('pesapal_consumer_key', '');
+        $consumerSecret = Request::post('pesapal_consumer_secret', '');
+        $testMode       = Request::post('pesapal_test_mode') === '1' ? '1' : '0';
+
+        // Save temporarily so PesapalAPI can read them
+        $upsert('pesapal_consumer_key', $consumerKey, 'payments');
+        $upsert('pesapal_consumer_secret', $consumerSecret, 'payments');
+        $upsert('pesapal_test_mode', $testMode, 'payments');
+        $upsert('pesapal_key', $consumerKey, 'payments');
+        $upsert('pesapal_secret', $consumerSecret, 'payments');
+        $upsert('pesapal_env', $testMode === '1' ? 'sandbox' : 'production', 'payments');
+
+        require_once ROOT_PATH . '/app/Core/PesapalAPI.php';
+        $result = PesapalAPI::testConnection();
+
+        echo json_encode($result, JSON_UNESCAPED_SLASHES);
+        exit;
     }
 
     /**

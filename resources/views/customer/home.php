@@ -125,7 +125,7 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
 
 <!-- ==================== CATEGORIES ==================== -->
 <?php if ($showCategories && !empty($categories)): ?>
-<section class="py-12 md:py-16 bg-stone-50">
+<section class="py-12 md:py-16 bg-stone-50 overflow-hidden">
     <div class="w-full px-4 sm:px-6 lg:px-0">
         <div class="flex items-center justify-between mb-8 px-4 sm:px-6 lg:px-8">
             <div>
@@ -136,34 +136,62 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
                 View All <i data-lucide="arrow-right" class="w-4 h-4"></i>
             </a>
         </div>
-        <div class="relative">
-            <div id="catSlider" class="flex gap-5 overflow-x-auto pb-2 scrollbar-hide scroll-smooth" style="-ms-overflow-style:none;scrollbar-width:none;">
-                <?php foreach ($categories as $index => $cat): ?>
-                <a href="/category/<?= e($cat['slug']) ?>" class="shrink-0 group">
-                    <div class="rounded-full overflow-hidden border-2 border-gray-100 group-hover:border-amber-400 group-hover:shadow-lg group-hover:shadow-amber-100/50 group-hover:scale-110 transition-all duration-300 relative" style="width:<?= $catCircleSize ?>px;height:<?= $catCircleSize ?>px;">
-                        <img src="<?= $cat['image'] ?? '/uploads/no-image-sm.jpg' ?>" alt="<?= e($cat['name']) ?>" class="w-full h-full object-cover">
-                        <div class="absolute inset-0 bg-black/50 flex items-center justify-center">
-                            <p class="font-bold text-white text-center leading-tight px-1.5 drop-shadow-md" style="font-size:<?= $catCircleFontSize ?>"><?= e($cat['name']) ?></p>
-                        </div>
+    </div>
+    <!-- Continuous marquee slider -->
+    <div class="relative" id="catMarqueeWrap">
+        <div class="cat-marquee-track flex gap-5" id="catMarqueeTrack" style="animation: catMarqueeScroll var(--marquee-duration, 30s) linear infinite; width: max-content;">
+            <?php
+            // Render categories twice for seamless loop
+            $allCats = array_merge($categories, $categories);
+            foreach ($allCats as $cat):
+            ?>
+            <a href="/category/<?= e($cat['slug']) ?>" class="shrink-0 group">
+                <div class="rounded-full overflow-hidden border-2 border-gray-100 group-hover:border-amber-400 group-hover:shadow-lg group-hover:shadow-amber-100/50 group-hover:scale-110 transition-all duration-300 relative" style="width:<?= $catCircleSize ?>px;height:<?= $catCircleSize ?>px;">
+                    <img src="<?= $cat['image'] ?? '/uploads/no-image-sm.jpg' ?>" alt="<?= e($cat['name']) ?>" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <p class="font-bold text-white text-center leading-tight px-1.5 drop-shadow-md" style="font-size:<?= $catCircleFontSize ?>"><?= e($cat['name']) ?></p>
                     </div>
-                </a>
-                <?php endforeach; ?>
-            </div>
-            <!-- Slide buttons -->
-            <button onclick="slideCats(-1)" id="catSlidePrev" class="hidden absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 w-8 h-8 bg-white border border-gray-200 rounded-full shadow-md flex items-center justify-center text-gray-600 hover:text-amber-600 hover:border-amber-300 transition-colors z-10">
-                <i data-lucide="chevron-left" class="w-4 h-4"></i>
-            </button>
-            <button onclick="slideCats(1)" id="catSlideNext" class="hidden absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 w-8 h-8 bg-white border border-gray-200 rounded-full shadow-md flex items-center justify-center text-gray-600 hover:text-amber-600 hover:border-amber-300 transition-colors z-10">
-                <i data-lucide="chevron-right" class="w-4 h-4"></i>
-            </button>
-        </div>
-        <div class="mt-4 flex items-center justify-center gap-4">
-            <a href="/categories" class="inline-flex items-center gap-1 text-amber-600 hover:text-amber-700 font-medium text-sm transition-colors">
-                View All Categories <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </div>
             </a>
+            <?php endforeach; ?>
         </div>
+        <!-- Fade edges -->
+        <div class="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-stone-50 to-transparent z-10 pointer-events-none"></div>
+        <div class="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-stone-50 to-transparent z-10 pointer-events-none"></div>
+    </div>
+    <div class="mt-6 flex items-center justify-center">
+        <a href="/categories" class="inline-flex items-center gap-1 text-amber-600 hover:text-amber-700 font-medium text-sm transition-colors">
+            View All Categories <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </a>
     </div>
 </section>
+
+<style>
+@keyframes catMarqueeScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+#catMarqueeTrack {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+#catMarqueeTrack::-webkit-scrollbar { display: none; }
+#catMarqueeWrap:hover #catMarqueeTrack {
+    animation-play-state: paused;
+}
+</style>
+
+<script>
+// Dynamic marquee speed based on content width
+(function(){
+    const track = document.getElementById('catMarqueeTrack');
+    if (!track) return;
+    const halfWidth = track.scrollWidth / 2;
+    // Base: 30px per second
+    const duration = Math.max(halfWidth / 30, 10);
+    track.style.setProperty('--marquee-duration', duration + 's');
+})();
+</script>
 <?php endif; ?>
 
 <!-- ==================== FEATURED PRODUCTS ==================== -->
@@ -655,68 +683,4 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'ArrowRight') heroSlider.next();
     });
 });
-
-// Category auto-sliding
-(function(){
-    const slider = document.getElementById('catSlider');
-    const prevBtn = document.getElementById('catSlidePrev');
-    const nextBtn = document.getElementById('catSlideNext');
-    if (!slider) return;
-
-    let autoTimer = null;
-    let scrollAmount = 0;
-    let direction = 1;
-    const speed = 0.8; // pixels per frame
-
-    function isOverflow() {
-        return slider.scrollWidth > slider.clientWidth + 10;
-    }
-
-    function updateButtons() {
-        const show = isOverflow();
-        prevBtn.classList.toggle('hidden', !show);
-        nextBtn.classList.toggle('hidden', !show);
-    }
-
-    function startAutoSlide() {
-        stopAutoSlide();
-        if (!isOverflow()) return;
-        autoTimer = requestAnimationFrame(step);
-    }
-
-    function step() {
-        scrollAmount += speed * direction;
-        if (scrollAmount >= 1) {
-            const steps = Math.floor(scrollAmount);
-            slider.scrollLeft += steps * direction;
-            scrollAmount -= steps;
-        }
-        // Bounce at edges
-        if (slider.scrollLeft >= slider.scrollWidth - slider.clientWidth - 2) {
-            direction = -1;
-        } else if (slider.scrollLeft <= 2) {
-            direction = 1;
-        }
-        autoTimer = requestAnimationFrame(step);
-    }
-
-    function stopAutoSlide() {
-        if (autoTimer) { cancelAnimationFrame(autoTimer); autoTimer = null; }
-    }
-
-    window.slideCats = function(dir) {
-        stopAutoSlide();
-        slider.scrollBy({ left: dir * (slider.clientWidth * 0.6), behavior: 'smooth' });
-        setTimeout(startAutoSlide, 1500);
-    };
-
-    slider.addEventListener('mouseenter', stopAutoSlide);
-    slider.addEventListener('mouseleave', startAutoSlide);
-    slider.addEventListener('touchstart', stopAutoSlide, {passive: true});
-    slider.addEventListener('touchend', function(){ setTimeout(startAutoSlide, 2000); });
-
-    updateButtons();
-    window.addEventListener('resize', updateButtons);
-    startAutoSlide();
-})();
 </script>

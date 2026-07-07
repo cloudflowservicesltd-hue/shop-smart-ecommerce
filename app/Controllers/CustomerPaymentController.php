@@ -632,69 +632,28 @@ class CustomerPaymentController extends BaseController
                 return;
 
             case 'pesapal':
-                $ppalConsumerKey = $this->getSetting('pesapal_key');
-                $ppalConsumerSecret = $this->getSetting('pesapal_secret');
-                $ppalEnv = $this->getSetting('pesapal_env') ?: 'sandbox';
-                $ppalIpnId = $this->getSetting('pesapal_ipn_id');
-                if (!empty($ppalConsumerKey) && !empty($ppalConsumerSecret)) {
-                    $ppalBase = $ppalEnv === 'production'
-                        ? 'https://pay.pesapal.com'
-                        : 'https://cybqa.pesapal.com';
-                    $ch = curl_init($ppalBase . '/api/Auth/RequestToken');
-                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                        'Content-Type: application/json',
-                        'Authorization: Basic ' . base64_encode($ppalConsumerKey . ':' . $ppalConsumerSecret),
-                    ]);
-                    curl_setopt($ch, CURLOPT_POST, true);
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                    $ppalTokenResp = curl_exec($ch);
-                    curl_close($ch);
-                    $ppalTokenData = json_decode($ppalTokenResp, true);
-                    $ppalToken = $ppalTokenData['token'] ?? '';
+                require_once ROOT_PATH . '/app/Core/PesapalAPI.php';
+                if (PesapalAPI::isConfigured()) {
+                    $shipping = Session::get('checkout_shipping', []);
+                    $callbackUrl = $siteUrl . '/payment/pesapal/callback?order_id=' . $orderId;
+                    $ipnUrl = $siteUrl . '/payment/pesapal/ipn';
+                    $ppalResult = PesapalAPI::checkout([
+                        'id'              => $orderId,
+                        'order_number'    => $orderNum,
+                        'total_amount'    => $orderTotal,
+                        'customer_name'   => $shipping['name'] ?? 'Customer',
+                        'customer_email'  => $shipping['email'] ?? '',
+                        'customer_phone'  => $shipping['phone'] ?? '',
+                    ], $callbackUrl, $ipnUrl);
 
-                    if (!empty($ppalToken)) {
-                        $callbackUrl = $siteUrl . '/payment/pesapal/callback?order_id=' . $orderId;
-                        $shipping = Session::get('checkout_shipping', []);
-                        $ch = curl_init($ppalBase . '/api/Transactions/SubmitOrderRequest');
-                        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                            'Content-Type: application/json',
-                            'Authorization: Bearer ' . $ppalToken,
-                        ]);
-                        curl_setopt($ch, CURLOPT_POST, true);
-                        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-                            'id' => $orderNum,
-                            'currency' => 'KES',
-                            'amount' => round($orderTotal, 2),
-                            'description' => 'Order ' . $orderNum,
-                            'callback_url' => $callbackUrl,
-                            'notification_id' => $ppalIpnId,
-                            'billing_address' => [
-                                'email_address' => $shipping['email'] ?? '',
-                                'phone_number' => preg_replace('/[^0-9]/', '', $shipping['phone'] ?? ''),
-                                'first_name' => explode(' ', $shipping['name'] ?? 'Customer')[0],
-                                'last_name' => explode(' ', $shipping['name'] ?? 'Customer')[1] ?? '',
-                                'country' => 'Kenya',
-                            ],
-                        ]));
-                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                        $ppalOrderResp = curl_exec($ch);
-                        curl_close($ch);
-                        $ppalOrderData = json_decode($ppalOrderResp, true);
-
-                        if (!empty($ppalOrderData['redirect_url'])) {
-                            Database::update('orders', ['payment_reference' => $ppalOrderData['order_tracking_id'] ?? '', 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$orderId]);
-                            Session::remove('checkout_shipping');
-                            $this->posJson(['success' => true, 'order_id' => $orderId, 'redirect_url' => $ppalOrderData['redirect_url']]);
-                            return;
-                        }
-                        $this->markFailed($orderId, 'PesaPal: ' . ($ppalOrderData['error']['message'] ?? json_encode($ppalOrderData)));
-                        $this->posJson(['success' => false, 'message' => 'PesaPal error: ' . ($ppalOrderData['error']['message'] ?? json_encode($ppalOrderData))]);
+                    if ($ppalResult['success']) {
+                        Database::update('orders', ['payment_reference' => $ppalResult['tracking_id'] ?? '', 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$orderId]);
+                        Session::remove('checkout_shipping');
+                        $this->posJson(['success' => true, 'order_id' => $orderId, 'redirect_url' => $ppalResult['redirect_url']]);
                         return;
                     }
-                    $this->markFailed($orderId, 'PesaPal authentication failed');
-                    $this->posJson(['success' => false, 'message' => 'PesaPal authentication failed. Check consumer key and secret.']);
+                    $this->markFailed($orderId, 'PesaPal: ' . ($ppalResult['error'] ?? 'Unknown error'));
+                    $this->posJson(['success' => false, 'message' => 'PesaPal error: ' . ($ppalResult['error'] ?? 'Unknown error')]);
                     return;
                 }
                 // No credentials — keep as pending (user can pay later)
@@ -980,59 +939,26 @@ class CustomerPaymentController extends BaseController
                 return;
 
             case 'pesapal':
-                $ppalConsumerKey = $this->getSetting('pesapal_key');
-                $ppalConsumerSecret = $this->getSetting('pesapal_secret');
-                $ppalEnv = $this->getSetting('pesapal_env') ?: 'sandbox';
-                $ppalIpnId = $this->getSetting('pesapal_ipn_id');
-                if (!empty($ppalConsumerKey) && !empty($ppalConsumerSecret)) {
-                    $ppalBase = $ppalEnv === 'production' ? 'https://pay.pesapal.com' : 'https://cybqa.pesapal.com';
-                    $ch = curl_init($ppalBase . '/api/Auth/RequestToken');
-                    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'Authorization: Basic ' . base64_encode($ppalConsumerKey . ':' . $ppalConsumerSecret)]);
-                    curl_setopt($ch, CURLOPT_POST, true);
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                    $ppalTokenResp = curl_exec($ch);
-                    curl_close($ch);
-                    $ppalTokenData = json_decode($ppalTokenResp, true);
-                    $ppalToken = $ppalTokenData['token'] ?? '';
+                require_once ROOT_PATH . '/app/Core/PesapalAPI.php';
+                if (PesapalAPI::isConfigured()) {
+                    $callbackUrl = $siteUrl . '/payment/pesapal/callback?order_id=' . $orderId;
+                    $ipnUrl = $siteUrl . '/payment/pesapal/ipn';
+                    $ppalResult = PesapalAPI::checkout([
+                        'id'              => $orderId,
+                        'order_number'    => $orderNum,
+                        'total_amount'    => $orderTotal,
+                        'customer_name'   => $order['customer_name'] ?? 'Customer',
+                        'customer_email'  => $order['customer_email'] ?? '',
+                        'customer_phone'  => $order['customer_phone'] ?? '',
+                    ], $callbackUrl, $ipnUrl);
 
-                    if (!empty($ppalToken)) {
-                        $callbackUrl = $siteUrl . '/payment/pesapal/callback?order_id=' . $orderId;
-                        $ch = curl_init($ppalBase . '/api/Transactions/SubmitOrderRequest');
-                        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'Authorization: Bearer ' . $ppalToken]);
-                        curl_setopt($ch, CURLOPT_POST, true);
-                        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-                            'id' => $orderNum,
-                            'currency' => 'KES',
-                            'amount' => round($orderTotal, 2),
-                            'description' => 'Order ' . $orderNum,
-                            'callback_url' => $callbackUrl,
-                            'notification_id' => $ppalIpnId,
-                            'billing_address' => [
-                                'email_address' => $order['customer_email'] ?? '',
-                                'phone_number' => preg_replace('/[^0-9]/', '', $order['customer_phone'] ?? ''),
-                                'first_name' => explode(' ', $order['customer_name'] ?? 'Customer')[0],
-                                'last_name' => explode(' ', $order['customer_name'] ?? 'Customer')[1] ?? '',
-                                'country' => 'Kenya',
-                            ],
-                        ]));
-                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                        $ppalOrderResp = curl_exec($ch);
-                        curl_close($ch);
-                        $ppalOrderData = json_decode($ppalOrderResp, true);
-
-                        if (!empty($ppalOrderData['redirect_url'])) {
-                            Database::update('orders', ['payment_reference' => $ppalOrderData['order_tracking_id'] ?? '', 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$orderId]);
-                            $this->posJson(['success' => true, 'order_id' => $orderId, 'redirect_url' => $ppalOrderData['redirect_url']]);
-                            return;
-                        }
-                        $this->markFailed($orderId, 'PesaPal: ' . ($ppalOrderData['error']['message'] ?? json_encode($ppalOrderData)));
-                        $this->posJson(['success' => false, 'message' => 'PesaPal error: ' . ($ppalOrderData['error']['message'] ?? json_encode($ppalOrderData))]);
+                    if ($ppalResult['success']) {
+                        Database::update('orders', ['payment_reference' => $ppalResult['tracking_id'] ?? '', 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$orderId]);
+                        $this->posJson(['success' => true, 'order_id' => $orderId, 'redirect_url' => $ppalResult['redirect_url']]);
                         return;
                     }
-                    $this->markFailed($orderId, 'PesaPal authentication failed');
-                    $this->posJson(['success' => false, 'message' => 'PesaPal authentication failed']);
+                    $this->markFailed($orderId, 'PesaPal: ' . ($ppalResult['error'] ?? 'Unknown error'));
+                    $this->posJson(['success' => false, 'message' => 'PesaPal error: ' . ($ppalResult['error'] ?? 'Unknown error')]);
                     return;
                 }
                 $this->posJson(['success' => false, 'message' => 'PesaPal is not configured. Please contact admin.']);
@@ -1641,23 +1567,216 @@ class CustomerPaymentController extends BaseController
 
     /**
      * GET /payment/pesapal/redirect
-     * PesaPal redirect after payment.
+     * Legacy PesaPal redirect after payment — now verifies via API.
      */
     public function pesapalRedirect(): void
     {
+        require_once ROOT_PATH . '/app/Core/PesapalAPI.php';
         $orderId = (int)Request::query('order_id', 0);
-        // In production, this would redirect to PesaPal iframe/checkout
-        // For demo, mark as paid and redirect to success
         if ($orderId) {
-            Database::update('orders', [
-                'payment_status' => 'paid',
-                'status' => 'processing',
-                'payment_reference' => 'pesapal',
-                'updated_at' => date('Y-m-d H:i:s'),
-            ], 'id = ?', [$orderId]);
-            $this->processReferralCommission($orderId);
+            $this->verifyAndCompletePesapalOrder($orderId);
         }
         Session::set('last_order_id', $orderId);
         Redirect::to('/order-success');
+    }
+
+    /**
+     * GET /payment/pesapal/checkout/{order_id}
+     * Re-initiate Pesapal payment for a pending order (standalone route).
+     */
+    public function pesapalCheckout(int $orderId): void
+    {
+        if (!Auth::check()) Redirect::to('/login');
+
+        $order = Database::selectOne("SELECT * FROM orders WHERE id = ? AND customer_id = ?", [$orderId, Auth::id()]);
+        if (!$order) {
+            Session::flash('error', 'Order not found');
+            Redirect::to('/account/orders');
+            return;
+        }
+        if ($order['payment_status'] !== 'pending') {
+            Session::flash('error', 'This order is not pending payment');
+            Redirect::to('/account/orders');
+            return;
+        }
+
+        require_once ROOT_PATH . '/app/Core/PesapalAPI.php';
+
+        if (!PesapalAPI::isConfigured()) {
+            Session::flash('error', 'Pesapal is not configured. Please contact admin.');
+            Redirect::to('/order/pay/' . $orderId);
+            return;
+        }
+
+        $siteUrl = $this->getSetting('site_url') ?: (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
+        $callbackUrl = $siteUrl . '/payment/pesapal/callback?order_id=' . $orderId;
+        $ipnUrl = $siteUrl . '/payment/pesapal/ipn';
+
+        $result = PesapalAPI::checkout([
+            'id'              => $order['id'],
+            'order_number'    => $order['order_number'],
+            'total_amount'    => $order['total'],
+            'customer_name'   => $order['customer_name'] ?? 'Customer',
+            'customer_email'  => $order['customer_email'] ?? '',
+            'customer_phone'  => $order['customer_phone'] ?? '',
+        ], $callbackUrl, $ipnUrl);
+
+        if ($result['success']) {
+            Database::update('orders', ['payment_reference' => $result['tracking_id'] ?? '', 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$orderId]);
+            Redirect::to($result['redirect_url']);
+            return;
+        }
+
+        Session::flash('error', 'Pesapal error: ' . ($result['error'] ?? 'Could not initiate payment'));
+        Redirect::to('/order/pay/' . $orderId);
+    }
+
+    /**
+     * GET /payment/pesapal/callback
+     * Pesapal redirects the user here after payment.
+     * Verifies the actual payment status via Pesapal API before marking as paid.
+     */
+    public function pesapalCallback(): void
+    {
+        require_once ROOT_PATH . '/app/Core/PesapalAPI.php';
+        $orderId = (int)Request::query('order_id', 0);
+
+        if ($orderId) {
+            $this->verifyAndCompletePesapalOrder($orderId);
+        }
+
+        Session::set('last_order_id', $orderId);
+        Redirect::to('/order-success');
+    }
+
+    /**
+     * POST /payment/pesapal/ipn
+     * Pesapal IPN (Instant Payment Notification) webhook.
+     * Pesapal sends this when the payment status changes.
+     */
+    public function pesapalIPN(): void
+    {
+        require_once ROOT_PATH . '/app/Core/PesapalAPI.php';
+
+        // Log the IPN payload
+        $logDir = ROOT_PATH . '/logs';
+        if (!is_dir($logDir)) mkdir($logDir, 0755, true);
+        $logFile = $logDir . '/pesapal_ipn.log';
+        $rawInput = file_get_contents('php://input');
+        file_put_contents($logFile, date('Y-m-d H:i:s') . " IPN received: " . $rawInput . "\n", FILE_APPEND);
+
+        // Pesapal sends: {order_tracking_id, order_merchant_reference, ...}
+        $ipnData = json_decode($rawInput, true);
+        $trackingId = $ipnData['order_tracking_id'] ?? '';
+
+        if (empty($trackingId)) {
+            http_response_code(200);
+            echo 'OK';
+            exit;
+        }
+
+        // Verify payment status with Pesapal
+        $statusResult = PesapalAPI::getTransactionStatus($trackingId);
+
+        if ($statusResult['success']) {
+            $statusCode = $statusResult['status_code'] ?? '';
+            $paymentStatus = $statusResult['payment_status'] ?? '';
+            $merchantRef = $statusResult['merchant_reference'] ?? '';
+
+            // Find the order by tracking ID or merchant reference
+            $order = Database::selectOne("SELECT * FROM orders WHERE payment_reference = ?", [$trackingId]);
+            if (!$order && !empty($merchantRef)) {
+                $order = Database::selectOne("SELECT * FROM orders WHERE order_number = ?", [$merchantRef]);
+            }
+
+            if ($order) {
+                // Only update if status changed
+                if (strtolower($paymentStatus) === 'completed' && $order['payment_status'] !== 'paid') {
+                    Database::update('orders', [
+                        'payment_status' => 'paid',
+                        'status'         => 'processing',
+                        'payment_method' => 'pesapal',
+                        'payment_reference' => $trackingId,
+                        'updated_at'     => date('Y-m-d H:i:s'),
+                    ], 'id = ?', [$order['id']]);
+
+                    // Record transaction
+                    try {
+                        Database::insert('transactions', [
+                            'order_id'       => $order['id'],
+                            'payment_method' => 'pesapal',
+                            'amount'         => $statusResult['amount'] ?? $order['total'],
+                            'reference'      => $trackingId,
+                            'status'         => 'completed',
+                            'created_at'     => date('Y-m-d H:i:s'),
+                        ]);
+                    } catch (\Throwable $e) {}
+
+                    $this->processReferralCommission($order['id']);
+
+                    file_put_contents($logFile, date('Y-m-d H:i:s') . " Order #{$order['id']} marked as PAID via IPN (status: {$paymentStatus})\n", FILE_APPEND);
+                } elseif (strtolower($paymentStatus) === 'failed' && $order['payment_status'] === 'pending') {
+                    Database::update('orders', [
+                        'payment_status' => 'failed',
+                        'status'         => 'failed',
+                        'notes'          => 'PesaPal IPN: payment ' . $paymentStatus,
+                        'updated_at'     => date('Y-m-d H:i:s'),
+                    ], 'id = ?', [$order['id']]);
+
+                    file_put_contents($logFile, date('Y-m-d H:i:s') . " Order #{$order['id']} marked as FAILED via IPN (status: {$paymentStatus})\n", FILE_APPEND);
+                } else {
+                    file_put_contents($logFile, date('Y-m-d H:i:s') . " Order #{$order['id']} IPN status: {$paymentStatus} (no change needed)\n", FILE_APPEND);
+                }
+            } else {
+                file_put_contents($logFile, date('Y-m-d H:i:s') . " No order found for tracking: {$trackingId}\n", FILE_APPEND);
+            }
+        } else {
+            file_put_contents($logFile, date('Y-m-d H:i:s') . " Status check failed: " . ($statusResult['error'] ?? 'Unknown') . "\n", FILE_APPEND);
+        }
+
+        // Always respond 200 to acknowledge receipt
+        http_response_code(200);
+        echo 'OK';
+        exit;
+    }
+
+    /**
+     * Shared helper: verify Pesapal payment status and complete the order if paid.
+     */
+    private function verifyAndCompletePesapalOrder(int $orderId): void
+    {
+        require_once ROOT_PATH . '/app/Core/PesapalAPI.php';
+        $order = Database::selectOne("SELECT * FROM orders WHERE id = ?", [$orderId]);
+        if (!$order) return;
+
+        $trackingId = $order['payment_reference'] ?? '';
+        if (empty($trackingId)) return;
+
+        // Already paid — don't re-process
+        if ($order['payment_status'] === 'paid') return;
+
+        $statusResult = PesapalAPI::getTransactionStatus($trackingId);
+        if ($statusResult['success'] && strtolower($statusResult['payment_status'] ?? '') === 'completed') {
+            Database::update('orders', [
+                'payment_status'  => 'paid',
+                'status'          => 'processing',
+                'payment_method'  => 'pesapal',
+                'payment_reference' => $trackingId,
+                'updated_at'      => date('Y-m-d H:i:s'),
+            ], 'id = ?', [$orderId]);
+
+            try {
+                Database::insert('transactions', [
+                    'order_id'       => $orderId,
+                    'payment_method' => 'pesapal',
+                    'amount'         => $statusResult['amount'] ?? $order['total'],
+                    'reference'      => $trackingId,
+                    'status'         => 'completed',
+                    'created_at'     => date('Y-m-d H:i:s'),
+                ]);
+            } catch (\Throwable $e) {}
+
+            $this->processReferralCommission($orderId);
+        }
     }
 }

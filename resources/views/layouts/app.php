@@ -18,6 +18,11 @@ $storeAddress = $siteSettings['store_address'] ?? 'Kenyatta Avenue, Nairobi CBD,
 $currencySymbol = !empty($siteSettings['currency_symbol']) ? $siteSettings['currency_symbol'] : 'KSh';
 $shippingThreshold = !empty($siteSettings['shipping_threshold']) ? (float)$siteSettings['shipping_threshold'] : 5000;
 
+// Logo display size
+$logoHeight = (int)($siteSettings['logo_height'] ?? 40);
+if ($logoHeight < 20) $logoHeight = 20;
+if ($logoHeight > 300) $logoHeight = 300;
+
 // Color settings with defaults
 $primaryColor = $siteSettings['primary_color'] ?? '#d97706';
 $primaryHoverColor = $siteSettings['primary_hover_color'] ?? '#b45309';
@@ -180,7 +185,7 @@ $socialTk = $siteSettings['social_tiktok'] ?? '';
                 <!-- Logo -->
                 <a href="/" class="flex items-center gap-2">
                     <?php if ($siteLogo): ?>
-                        <img src="<?= e($siteLogo) ?>" alt="<?= e($storeName) ?>" class="h-9 w-auto object-contain">
+                        <img src="<?= e($siteLogo) ?>" alt="<?= e($storeName) ?>" class="w-auto object-contain" style="height:<?= $logoHeight ?>px;max-width:<?= $logoHeight * 3.5 ?>px;">
                     <?php else: ?>
                         <div class="w-9 h-9 bg-primary-600 rounded-lg flex items-center justify-center">
                             <i data-lucide="shopping-bag" class="w-5 h-5 text-white"></i>
@@ -349,7 +354,7 @@ $socialTk = $siteSettings['social_tiktok'] ?? '';
                 <div>
                     <a href="/" class="flex items-center gap-2 mb-4">
                         <?php if ($siteLogo): ?>
-                            <img src="<?= e($siteLogo) ?>" alt="<?= e($storeName) ?>" class="h-9 w-auto max-w-[140px] object-contain">
+                            <img src="<?= e($siteLogo) ?>" alt="<?= e($storeName) ?>" class="w-auto object-contain" style="height:<?= $logoHeight ?>px;max-width:<?= $logoHeight * 3.5 ?>px;">
                             <span class="font-heading font-bold text-xl text-white"><?= e($storeName) ?></span>
                         <?php else: ?>
                             <div class="w-9 h-9 bg-primary-600 rounded-lg flex items-center justify-center">
