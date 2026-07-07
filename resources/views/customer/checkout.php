@@ -21,7 +21,7 @@ $activePaymentMethods = [];
 $methodConfigs = [
     'mpesa' => ['label' => 'M-Pesa', 'icon' => 'smartphone', 'color' => 'green', 'desc' => 'Pay via M-Pesa on your phone', 'badge' => 'Popular'],
     'intasend' => ['label' => 'IntaSend', 'icon' => 'zap', 'color' => 'purple', 'desc' => 'Mobile money & card payments'],
-    'paypal' => ['label' => 'PayPal', 'icon' => 'globe', 'color' => 'indigo', 'desc' => 'Pay securely with PayPal'],
+    'paypal' => ['label' => 'PayPal', 'icon' => 'globe', 'color' => 'indigo', 'desc' => 'Pay via card or PayPal account', 'badge' => 'Cards Accepted'],
     'pesapal' => ['label' => 'PesaPal', 'icon' => 'wallet', 'color' => 'orange', 'desc' => 'Multiple payment options'],
     'stripe' => ['label' => 'Stripe', 'icon' => 'credit-card', 'color' => 'indigo', 'desc' => 'Visa, Mastercard & more'],
 ];
@@ -130,8 +130,8 @@ $colorMap = [
                             </select>
                         </div>
                         <div class="sm:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Delivery Address *</label>
-                            <input type="text" name="address" required value="<?= e($shipping['address'] ?? Auth::user()['address'] ?? '') ?>"
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Delivery Address <span class="text-gray-400 font-normal">(optional)</span></label>
+                            <input type="text" name="address" value="<?= e($shipping['address'] ?? Auth::user()['address'] ?? '') ?>"
                                    class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="Street address, apartment, suite, etc.">
                         </div>
                         <div class="sm:col-span-2">

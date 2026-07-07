@@ -60,6 +60,12 @@
                         <span class="ml-auto bg-gray-100 text-gray-500 text-xs font-medium px-2 py-0.5 rounded-full"><?= $reviewCount ?></span>
                         <?php endif; ?>
                     </a>
+                    <a href="/account/referral" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                        <i data-lucide="gift" class="w-4 h-4"></i> Referral Earnings
+                        <?php if (($commissionBalance ?? 0) > 0): ?>
+                        <span class="ml-auto bg-amber-100 text-amber-600 text-xs font-medium px-2 py-0.5 rounded-full"><?= formatMoney($commissionBalance) ?></span>
+                        <?php endif; ?>
+                    </a>
                     <a href="/account/profile" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
                         <i data-lucide="user" class="w-4 h-4"></i> Edit Profile
                     </a>
@@ -146,9 +152,12 @@
             <?php if (!empty($myReferralLink)): ?>
             <!-- Referral Program -->
             <div class="bg-white border border-gray-200 rounded-2xl p-6 mb-8">
-                <h2 class="font-semibold text-gray-900 flex items-center gap-2 mb-4">
-                    <i data-lucide="gift" class="w-4 h-4 text-amber-600"></i> Refer &amp; Earn
-                </h2>
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-semibold text-gray-900 flex items-center gap-2">
+                        <i data-lucide="gift" class="w-4 h-4 text-amber-600"></i> Refer &amp; Earn
+                    </h2>
+                    <a href="/account/referral" class="text-sm text-amber-600 hover:text-amber-700 font-medium transition-colors">View Details →</a>
+                </div>
                 <p class="text-sm text-gray-500 mb-4">Share your unique referral link with friends. When they make a purchase, you earn a commission!</p>
                 <div class="flex items-center gap-2 mb-4">
                     <input type="text" readonly value="<?= e($myReferralLink) ?>" id="myReferralLink"

@@ -245,7 +245,7 @@ class CheckoutPageController extends BaseController
     {
         // Must have shipping data
         $shipping = Session::get('checkout_shipping', []);
-        if (empty($shipping['name']) || empty($shipping['address'])) {
+        if (empty($shipping['name'])) {
             Redirect::to('/checkout/shipping');
         }
         $this->renderCheckout('payment');
@@ -271,7 +271,7 @@ class CheckoutPageController extends BaseController
     public function review(): void
     {
         $shipping = Session::get('checkout_shipping', []);
-        if (empty($shipping['name']) || empty($shipping['address'])) {
+        if (empty($shipping['name'])) {
             Redirect::to('/checkout/shipping');
         }
         if (empty($shipping['payment_method'])) {

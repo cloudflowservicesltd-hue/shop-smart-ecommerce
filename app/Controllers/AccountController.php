@@ -30,6 +30,40 @@ class AccountController extends BaseController
     }
 
     /**
+     * Customer referral earnings & withdrawal page.
+     * Route: GET /account/referral
+     */
+    public function referralPage(): void
+    {
+        if (!Auth::check()) Redirect::to('/login');
+        $userId = Auth::id();
+
+        // Referral link
+        $myReferral = Database::selectOne("SELECT * FROM referrals WHERE referrer_id = ? AND referred_id IS NULL LIMIT 1", [$userId]);
+        $myReferralLink = '';
+        if ($myReferral) {
+            $myReferralLink = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/?ref=' . urlencode($myReferral['referral_code']);
+        }
+
+        // Stats
+        $myReferralStats = Database::selectOne("SELECT COUNT(*) as total_refs, COALESCE(SUM(commission_amount),0) as total_earned, COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_amount ELSE 0 END),0) as total_paid FROM referrals WHERE referrer_id = ? AND referred_id IS NOT NULL", [$userId]);
+        $earned = (float)(Database::selectOne("SELECT COALESCE(SUM(amount),0) as total FROM commissions WHERE user_id = ? AND status = 'paid'", [$userId])['total'] ?? 0);
+        $pendingW = (float)(Database::selectOne("SELECT COALESCE(SUM(amount),0) as total FROM referral_withdrawals WHERE user_id = ? AND status IN ('pending','approved')", [$userId])['total'] ?? 0);
+        $commissionBalance = max(0, $earned - $pendingW);
+
+        // Withdrawal history
+        $withdrawals = Database::select("SELECT * FROM referral_withdrawals WHERE user_id = ? ORDER BY created_at DESC", [$userId]);
+
+        // Referral list (people referred)
+        $referredUsers = Database::select("SELECT r.*, u.name as referred_name, u.email as referred_email, o.order_number, o.total as order_total FROM referrals r LEFT JOIN users u ON r.referred_id = u.id LEFT JOIN orders o ON o.referral_code = r.referral_code AND o.customer_id = r.referred_id WHERE r.referrer_id = ? AND r.referred_id IS NOT NULL ORDER BY r.created_at DESC", [$userId]);
+
+        ob_start();
+        include ROOT_PATH . '/resources/views/customer/account-referral.php';
+        $content = ob_get_clean();
+        include ROOT_PATH . '/resources/views/layouts/app.php';
+    }
+
+    /**
      * Customer orders list (paginated).
      * Route: GET /account/orders
      */

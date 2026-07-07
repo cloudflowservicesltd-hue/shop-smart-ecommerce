@@ -538,4 +538,11 @@ $router->group(['prefix' => 'admin', 'middleware' => 'admin'], function($router)
     $router->get('/referrals', 'AdminReferralController@index');
     $router->post('/referrals/settings', 'AdminReferralController@settings');
     $router->post('/referrals/{id}/pay', 'AdminReferralController@pay');
+    $router->get('/referrals/withdrawals', 'AdminReferralController@withdrawals');
+    $router->post('/referrals/withdrawals/{id}/approve', 'AdminReferralController@approveWithdrawal');
+    $router->post('/referrals/withdrawals/{id}/reject', 'AdminReferralController@rejectWithdrawal');
 });
+
+// Customer referral earnings & withdrawal
+$router->get('/account/referral', 'AccountController@referralPage');
+$router->post('/account/referral/withdraw', 'AccountController@requestWithdrawal');

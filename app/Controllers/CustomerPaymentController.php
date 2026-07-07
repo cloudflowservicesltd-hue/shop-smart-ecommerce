@@ -611,6 +611,7 @@ class CustomerPaymentController extends BaseController
                             'application_context' => [
                                 'brand_name' => $this->getSetting('store_name') ?: 'ShopSmart',
                                 'user_action' => 'CONTINUE',
+                                'shipping_preference' => 'NO_SHIPPING',
                                 'return_url' => $successUrl,
                                 'cancel_url' => $cancelUrl,
                             ],
@@ -988,6 +989,7 @@ class CustomerPaymentController extends BaseController
                             'application_context' => [
                                 'brand_name' => $this->getSetting('store_name') ?: 'ShopSmart',
                                 'user_action' => 'CONTINUE',
+                                'shipping_preference' => 'NO_SHIPPING',
                                 'return_url' => $successUrl,
                                 'cancel_url' => $cancelUrl,
                             ],
