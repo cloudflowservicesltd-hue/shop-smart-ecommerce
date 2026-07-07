@@ -1,6 +1,6 @@
 <!-- Breadcrumbs -->
 <div class="bg-gray-50 border-b border-gray-100">
-    <div class="max-w-7xl mx-auto px-4 py-3">
+    <div class="w-full px-4 sm:px-6 xl:px-0 py-3">
         <nav class="flex items-center gap-2 text-sm text-gray-500">
             <a href="/" class="hover:text-amber-600 transition-colors">Home</a>
             <i data-lucide="chevron-right" class="w-4 h-4"></i>
@@ -13,7 +13,7 @@
     </div>
 </div>
 
-<div class="max-w-7xl mx-auto px-4 py-8">
+<div class="w-full px-4 sm:px-6 xl:px-0 py-8">
     <div class="flex flex-col lg:flex-row gap-8">
 
         <!-- Sidebar Filters (Desktop) -->
@@ -177,7 +177,7 @@
 
             <!-- Product Grid -->
             <?php if (!empty($products ?? [])): ?>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-5">
+            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-5">
                 <?php foreach ($products as $product): ?>
                 <div class="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:shadow-gray-200/50 transition-all duration-300">
                     <a href="/product/<?= e($product['slug']) ?>" class="block relative aspect-square bg-gray-50 overflow-hidden">

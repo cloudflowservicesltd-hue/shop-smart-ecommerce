@@ -163,7 +163,7 @@ $socialTk = $siteSettings['social_tiktok'] ?? '';
     <header class="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm site-header">
         <!-- Top bar -->
         <div class="top-bar text-white text-xs py-1.5 hidden sm:block">
-            <div class="max-w-7xl mx-auto px-4 flex justify-between items-center">
+            <div class="w-full px-4 sm:px-6 xl:px-0 flex justify-between items-center">
                 <div class="flex items-center gap-4">
                     <a href="tel:<?= e(preg_replace('/[^0-9+]/', '', $storePhone)) ?>" class="flex items-center gap-1 hover:text-amber-300 transition-colors"><i data-lucide="phone" class="w-3 h-3"></i> <?= e($storePhone) ?></a>
                     <a href="mailto:<?= e($storeEmail) ?>" class="flex items-center gap-1 hover:text-amber-300 transition-colors"><i data-lucide="mail" class="w-3 h-3"></i> <?= e($storeEmail) ?></a>
@@ -175,7 +175,7 @@ $socialTk = $siteSettings['social_tiktok'] ?? '';
         </div>
 
         <!-- Main nav -->
-        <nav class="max-w-7xl mx-auto px-4 py-3">
+        <nav class="w-full px-4 sm:px-6 xl:px-0 py-3">
             <div class="flex items-center justify-between">
                 <!-- Logo -->
                 <a href="/" class="flex items-center gap-2">
@@ -190,7 +190,7 @@ $socialTk = $siteSettings['social_tiktok'] ?? '';
                 </a>
 
                 <!-- Search bar (desktop) -->
-                <div class="hidden md:flex flex-1 max-w-lg mx-8">
+                <div class="hidden md:flex flex-1 max-w-2xl mx-8 xl:mx-12">
                     <form action="/search" method="GET" class="w-full relative">
                         <input type="text" name="q" placeholder="Search products, brands, categories..."
                             value="<?= e(Request::query('q', '')) ?>"
@@ -289,7 +289,7 @@ $socialTk = $siteSettings['social_tiktok'] ?? '';
 
         <!-- Category nav (desktop) -->
         <div class="hidden lg:block border-t border-gray-50 bg-white">
-            <div class="max-w-7xl mx-auto px-4">
+            <div class="w-full px-4 sm:px-6 xl:px-0">
                 <div class="flex items-center gap-1">
                     <?php
                     $navCategories = Database::select("SELECT * FROM categories WHERE parent_id IS NULL AND is_active = 1 ORDER BY sort_order ASC LIMIT 8");
@@ -311,7 +311,7 @@ $socialTk = $siteSettings['social_tiktok'] ?? '';
 
         <!-- Mobile menu -->
         <div id="mobileMenu" class="hidden lg:hidden border-t border-gray-100 bg-white absolute left-0 right-0 shadow-xl z-50">
-            <div class="max-w-7xl mx-auto px-4 py-4 space-y-1">
+            <div class="w-full px-4 sm:px-6 xl:px-0 py-4 space-y-1">
                 <?php foreach ($navCategories as $cat): ?>
                     <a href="/category/<?= e($cat['slug']) ?>" class="block px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition-colors">
                         <?= e($cat['name']) ?>
@@ -343,7 +343,7 @@ $socialTk = $siteSettings['social_tiktok'] ?? '';
 
     <!-- Footer -->
     <footer class="bg-gray-900 text-gray-300 mt-auto site-footer">
-        <div class="max-w-7xl mx-auto px-4 py-12">
+        <div class="w-full px-4 sm:px-6 xl:px-0 py-12">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                 <!-- Brand -->
                 <div>

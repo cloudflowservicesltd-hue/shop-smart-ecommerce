@@ -54,7 +54,7 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
 
             <!-- Slide Content -->
             <div class="relative h-full flex items-center">
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 w-full">
+                <div class="w-full px-4 sm:px-6 xl:px-0">
                     <div class="max-w-2xl <?= $slide['text_position'] === 'center' ? 'mx-auto text-center' : ($slide['text_position'] === 'right' ? 'ml-auto text-right' : '') ?>">
                         
                         <!-- Badge / Subtitle -->
@@ -126,7 +126,7 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
 <!-- ==================== CATEGORIES ==================== -->
 <?php if ($showCategories && !empty($categories)): ?>
 <section class="py-12 md:py-16 bg-stone-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+    <div class="w-full px-4 sm:px-6 xl:px-0">
         <div class="flex items-center justify-between mb-8">
             <div>
                 <h2 class="font-heading text-2xl md:text-3xl font-bold text-gray-900">Shop by Category</h2>
@@ -169,7 +169,7 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
 <!-- ==================== FEATURED PRODUCTS ==================== -->
 <?php if ($showFeatured && !empty($featuredProducts)): ?>
 <section class="py-12 md:py-16">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+    <div class="w-full px-4 sm:px-6 xl:px-0">
         <div class="flex items-center justify-between mb-8">
             <div>
                 <h2 class="font-heading text-2xl md:text-3xl font-bold text-gray-900">Featured Products</h2>
@@ -179,7 +179,7 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
                 View All <i data-lucide="arrow-right" class="w-4 h-4"></i>
             </a>
         </div>
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
             <?php foreach ($featuredProducts as $product): ?>
             <div class="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300 hover:-translate-y-1">
                 <a href="/product/<?= e($product['slug']) ?>" class="block relative aspect-square bg-gray-50 overflow-hidden">
@@ -238,8 +238,8 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
 <!-- ==================== PROMO BANNERS ==================== -->
 <?php if ($showPromoBanners && !empty($promoBanners)): ?>
 <section class="py-12 md:py-16">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6">
-        <div class="grid md:grid-cols-2 gap-6">
+    <div class="w-full px-4 sm:px-6 xl:px-0">
+        <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
             <?php foreach ($promoBanners as $banner): ?>
             <div class="relative bg-gradient-to-br <?= e($banner['bg_gradient'] ?? 'from-amber-500 to-orange-600') ?> rounded-2xl p-8 md:p-10 text-white overflow-hidden group hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
                 <!-- Decorative circles -->
@@ -267,7 +267,7 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
 <!-- ==================== NEW ARRIVALS ==================== -->
 <?php if ($showNewArrivals && !empty($newProducts)): ?>
 <section class="py-12 md:py-16 bg-stone-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+    <div class="w-full px-4 sm:px-6 xl:px-0">
         <div class="flex items-center justify-between mb-8">
             <div>
                 <h2 class="font-heading text-2xl md:text-3xl font-bold text-gray-900">New Arrivals</h2>
@@ -277,7 +277,7 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
                 View All <i data-lucide="arrow-right" class="w-4 h-4"></i>
             </a>
         </div>
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
             <?php foreach (array_slice($newProducts, 0, 8) as $product): ?>
             <div class="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                 <a href="/product/<?= e($product['slug']) ?>" class="block relative aspect-square bg-gray-50 overflow-hidden">
@@ -325,7 +325,7 @@ $showTestimonials = !empty($googleBusinessId);
 ?>
 <?php if ($showTestimonials): ?>
 <section class="py-12 bg-gray-50">
-    <div class="max-w-7xl mx-auto px-4">
+    <div class="w-full px-4 sm:px-6 xl:px-0">
         <div class="text-center mb-8">
             <!-- Google Logo -->
             <div class="flex justify-center mb-4">
@@ -390,7 +390,7 @@ $showTestimonials = !empty($googleBusinessId);
 <!-- ==================== NEWSLETTER ==================== -->
 <?php if ($showNewsletter): ?>
 <section class="py-12 md:py-16">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+    <div class="w-full px-4 sm:px-6 xl:px-0">
         <div class="bg-gradient-to-br from-amber-600 via-orange-600 to-rose-600 rounded-3xl p-8 md:p-14 text-center text-white relative overflow-hidden">
             <!-- Decorative elements -->
             <div class="absolute top-0 left-1/4 w-64 h-64 bg-white/5 rounded-full blur-2xl animate-pulse-slow"></div>
@@ -421,8 +421,8 @@ $showTestimonials = !empty($googleBusinessId);
 <!-- ==================== TRUST BADGES ==================== -->
 <?php if ($showTrustBadges && !empty($trustBadges)): ?>
 <section class="py-12 md:py-16 border-t border-gray-100">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
+    <div class="w-full px-4 sm:px-6 xl:px-0">
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 md:gap-8">
             <?php foreach ($trustBadges as $badge): ?>
             <div class="text-center group">
                 <div class="w-14 h-14 mx-auto mb-3 bg-amber-50 rounded-2xl flex items-center justify-center group-hover:bg-amber-100 group-hover:scale-110 transition-all duration-300">
