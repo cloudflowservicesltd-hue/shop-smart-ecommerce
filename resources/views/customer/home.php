@@ -130,15 +130,16 @@ $showNewsletter = ($appearance['show_newsletter'] ?? '1') === '1';
                 View All <i data-lucide="arrow-right" class="w-4 h-4"></i>
             </a>
         </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        <div class="flex gap-5 overflow-x-auto pb-2 scrollbar-hide" style="-ms-overflow-style:none;scrollbar-width:none;">
             <?php foreach ($categories as $index => $cat): ?>
-            <a href="/category/<?= e($cat['slug']) ?>" 
-               class="group bg-white rounded-2xl p-5 text-center hover:shadow-xl hover:shadow-amber-100/50 transition-all duration-300 border border-gray-100 hover:border-amber-200 hover:-translate-y-1">
-                <div class="w-16 h-16 mx-auto mb-3 rounded-xl bg-amber-50 group-hover:bg-amber-100 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
-                    <img src="<?= $cat['image'] ?? '/uploads/no-image-sm.jpg' ?>" alt="<?= e($cat['name']) ?>" class="w-12 h-12 rounded-lg object-cover">
+            <a href="/category/<?= e($cat['slug']) ?>" class="flex flex-col items-center gap-2 shrink-0 group">
+                <div class="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-100 group-hover:border-amber-400 group-hover:shadow-lg group-hover:shadow-amber-100/50 group-hover:scale-110 transition-all duration-300">
+                    <img src="<?= $cat['image'] ?? '/uploads/no-image-sm.jpg' ?>" alt="<?= e($cat['name']) ?>" class="w-full h-full object-cover">
                 </div>
-                <h3 class="font-semibold text-gray-900 text-sm group-hover:text-amber-600 transition-colors"><?= e($cat['name']) ?></h3>
-                <p class="text-xs text-gray-400 mt-1"><?= number_format($cat['product_count'] ?? 0) ?> items</p>
+                <div class="text-center">
+                    <p class="text-xs font-semibold text-gray-700 group-hover:text-amber-600 transition-colors"><?= e($cat['name']) ?></p>
+                    <p class="text-[10px] text-gray-400"><?= number_format($cat['product_count'] ?? 0) ?> items</p>
+                </div>
             </a>
             <?php endforeach; ?>
         </div>

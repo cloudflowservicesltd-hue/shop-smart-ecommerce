@@ -226,6 +226,19 @@ class ProductController extends BaseController
         $pagination = $paginated;
         $totalProducts = $paginated['total'];
         $query = $q;
+
+        // Search categories
+        $searchCategories = [];
+        if (!empty($q)) {
+            $searchCategories = Database::select("SELECT c.*, (SELECT COUNT(*) FROM products WHERE category_id = c.id AND is_active = 1 AND (product_status IS NULL OR product_status IN ('active','out_of_stock_returning'))) as product_count FROM categories c WHERE c.is_active = 1 AND (c.name LIKE ? OR c.slug LIKE ?) ORDER BY c.name LIMIT 5", ["%$q%", "%$q%"]);
+        }
+
+        // Search brands
+        $searchBrands = [];
+        if (!empty($q)) {
+            $searchBrands = Database::select("SELECT * FROM brands WHERE is_active = 1 AND name LIKE ? ORDER BY name LIMIT 5", ["%$q%"]);
+        }
+
         $storeName = getStoreName();
         $pageTitle = "Search: $q - " . $storeName;
         ob_start();

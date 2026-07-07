@@ -498,6 +498,11 @@ $router->group(['prefix' => 'admin', 'middleware' => 'admin'], function($router)
     $router->post('/shipping/{id}/update', 'AdminShippingController@update');
     $router->post('/shipping/{id}/delete', 'AdminShippingController@delete');
 
+    // Shipping Cities
+    $router->post('/shipping/cities/store', 'AdminShippingController@storeCity');
+    $router->post('/shipping/cities/{id}/update', 'AdminShippingController@updateCity');
+    $router->post('/shipping/cities/{id}/delete', 'AdminShippingController@deleteCity');
+
     // Social Media
     $router->get('/social-media', 'AdminSocialMediaController@index');
     $router->post('/social-media/update', 'AdminSocialMediaController@update');

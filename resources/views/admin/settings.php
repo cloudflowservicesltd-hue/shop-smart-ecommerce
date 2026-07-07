@@ -69,6 +69,37 @@
             </div>
         </div>
 
+        <!-- Login Page Branding -->
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <h3 class="font-medium mb-4 flex items-center gap-2"><i data-lucide="log-in" class="w-5 h-5 text-amber-600"></i> Login Page Branding</h3>
+            <p class="text-sm text-gray-500 mb-4">Customize the branding shown on the login page.</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Login Logo</label>
+                    <input type="file" name="login_logo" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100">
+                    <p class="text-xs text-gray-400 mt-1">Recommended: 80x80px. Leave empty to keep current.</p>
+                    <?php $existingLogo = Database::selectOne("SELECT value FROM settings WHERE `key` = 'login_logo'"); if ($existingLogo && $existingLogo['value']): ?>
+                    <div class="mt-2 flex items-center gap-3">
+                        <img src="<?= e($existingLogo['value']) ?>" class="w-10 h-10 rounded-lg object-cover border">
+                        <button type="submit" name="remove_login_logo" value="1" class="text-xs text-red-600 hover:text-red-800 font-medium">Remove</button>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">App Name</label>
+                    <input type="text" name="login_title" value="<?= e(Database::selectOne("SELECT value FROM settings WHERE `key` = 'login_title'")['value'] ?? 'ShopSmart') ?>" class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Subtitle</label>
+                    <input type="text" name="login_subtitle" value="<?= e(Database::selectOne("SELECT value FROM settings WHERE `key` = 'login_subtitle'")['value'] ?? 'AI-Powered Ecommerce & POS') ?>" class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea name="login_description" rows="2" class="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"><?= e(Database::selectOne("SELECT value FROM settings WHERE `key` = 'login_description'")['value'] ?? 'Complete business solution with intelligent marketing, real-time inventory, and seamless payment processing.') ?></textarea>
+                </div>
+            </div>
+        </div>
+
         <!-- Website Colors -->
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
             <h3 class="font-medium mb-4 flex items-center gap-2"><i data-lucide="palette" class="w-5 h-5 text-amber-600"></i> Website Colors</h3>

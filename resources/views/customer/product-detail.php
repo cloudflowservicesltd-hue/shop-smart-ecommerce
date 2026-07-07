@@ -32,7 +32,7 @@ $finalPrice = $hasDiscount ? $product['discount_price'] : $product['price'];
     <div class="grid lg:grid-cols-2 gap-8 lg:gap-12">
         <!-- Image Gallery -->
         <div class="space-y-4">
-            <div class="relative aspect-square bg-gray-50 rounded-2xl overflow-hidden border border-gray-100">
+            <div class="relative aspect-square bg-gray-50 rounded-2xl overflow-hidden border border-gray-100" style="cursor:zoom-in">
                 <?php if ($hasDiscount): ?>
                 <span class="absolute top-4 left-4 bg-red-500 text-white text-sm font-bold px-3 py-1.5 rounded-xl z-10">
                     -<?= number_format((1 - $product['discount_price'] / $product['price']) * 100, 0) ?>% OFF
@@ -458,6 +458,49 @@ function toggleWishlist(productId) {
     })
     .finally(() => { btn.disabled = false; });
 }
+
+// Image Zoom Magnifier
+(function() {
+    const mainImg = document.getElementById('mainImage');
+    if (!mainImg) return;
+    const container = mainImg.parentElement;
+    
+    // Create zoom lens
+    const lens = document.createElement('div');
+    lens.style.cssText = 'position:absolute;width:120px;height:120px;border:2px solid rgba(217,119,6,0.5);border-radius:50%;cursor:none;display:none;pointer-events:none;z-index:10;background-repeat:no-repeat;';
+    container.style.position = 'relative';
+    container.appendChild(lens);
+
+    mainImg.addEventListener('mouseenter', function() { lens.style.display = 'block'; });
+    mainImg.addEventListener('mouseleave', function() { lens.style.display = 'none'; });
+    mainImg.addEventListener('mousemove', function(e) {
+        const rect = mainImg.getBoundingClientRect();
+        let x = e.clientX - rect.left;
+        let y = e.clientY - rect.top;
+        
+        // Prevent lens from going outside image
+        let lx = x - 60;
+        let ly = y - 60;
+        if (lx < 0) lx = 0;
+        if (ly < 0) ly = 0;
+        if (lx > rect.width - 120) lx = rect.width - 120;
+        if (ly > rect.height - 120) ly = rect.height - 120;
+        
+        lens.style.left = lx + 'px';
+        lens.style.top = ly + 'px';
+        
+        // Zoom factor 2.5x
+        const zoomFactor = 2.5;
+        const bgW = rect.width * zoomFactor;
+        const bgH = rect.height * zoomFactor;
+        const bgX = -(x * zoomFactor - 60);
+        const bgY = -(y * zoomFactor - 60);
+        
+        lens.style.backgroundImage = 'url(' + mainImg.src + ')';
+        lens.style.backgroundSize = bgW + 'px ' + bgH + 'px';
+        lens.style.backgroundPosition = bgX + 'px ' + bgY + 'px';
+    });
+})();
 
 function showToast(msg, type) {
     const existing = document.querySelector('.toast-notification');

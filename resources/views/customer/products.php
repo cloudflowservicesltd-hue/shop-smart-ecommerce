@@ -76,6 +76,15 @@
                         </a>
                         <?php endforeach; ?>
                     </div>
+                    <div class="mt-3 pt-3 border-t border-gray-100">
+                        <p class="text-xs font-medium text-gray-500 mb-2">Custom Range</p>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="customMinPrice" placeholder="Min" min="0" class="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400" value="<?= e(Request::query('min_price', '')) ?>">
+                            <span class="text-gray-400 text-xs">—</span>
+                            <input type="number" id="customMaxPrice" placeholder="Max" min="0" class="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400" value="<?= e(Request::query('max_price', '')) ?>">
+                        </div>
+                        <button onclick="applyCustomPrice()" class="mt-2 w-full text-xs font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 py-1.5 rounded-lg transition-colors">Apply</button>
+                    </div>
                 </div>
 
                 <!-- Brands -->
@@ -276,6 +285,16 @@
 </div>
 
 <script>
+function applyCustomPrice() {
+    const min = document.getElementById('customMinPrice').value;
+    const max = document.getElementById('customMaxPrice').value;
+    const params = new URLSearchParams(window.location.search);
+    if (min) params.set('min_price', min); else params.delete('min_price');
+    if (max) params.set('max_price', max); else params.delete('max_price');
+    params.delete('page');
+    window.location.href = '/products?' + params.toString();
+}
+
 // Toast notification
 function showToast(msg, type) {
     const existing = document.querySelector('.wishlist-toast');

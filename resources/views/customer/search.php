@@ -34,6 +34,57 @@
         </div>
     </form>
 
+    <?php if (!empty($searchCategories ?? [])): ?>
+    <!-- Categories Section -->
+    <div class="mb-8">
+        <h2 class="font-heading text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <i data-lucide="grid-3x3" class="w-5 h-5 text-amber-600"></i> Categories
+        </h2>
+        <div class="flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory scrollbar-thin">
+            <?php foreach ($searchCategories as $cat): ?>
+            <a href="/category/<?= e($cat['slug']) ?>" class="snap-start shrink-0 w-44 bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:shadow-gray-200/50 transition-all duration-300 group">
+                <div class="aspect-square bg-gray-50 overflow-hidden">
+                    <?php if (!empty($cat['image'])): ?>
+                    <img src="<?= e($cat['image']) ?>" alt="<?= e($cat['name']) ?>" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy">
+                    <?php else: ?>
+                    <div class="w-full h-full flex items-center justify-center">
+                        <i data-lucide="folder" class="w-12 h-12 text-gray-200"></i>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <div class="p-3">
+                    <h3 class="font-semibold text-sm text-gray-900 truncate group-hover:text-amber-600 transition-colors"><?= e($cat['name']) ?></h3>
+                    <p class="text-xs text-gray-400 mt-0.5"><?= number_format((int)($cat['product_count'] ?? 0)) ?> products</p>
+                </div>
+            </a>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if (!empty($searchBrands ?? [])): ?>
+    <!-- Brands Section -->
+    <div class="mb-8">
+        <h2 class="font-heading text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <i data-lucide="award" class="w-5 h-5 text-amber-600"></i> Brands
+        </h2>
+        <div class="flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory scrollbar-thin">
+            <?php foreach ($searchBrands as $b): ?>
+            <a href="/products?brand=<?= e($b['slug']) ?>" class="snap-start shrink-0 w-36 bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:shadow-gray-200/50 transition-all duration-300 group flex flex-col items-center justify-center p-5">
+                <?php if (!empty($b['logo'])): ?>
+                <img src="<?= e($b['logo']) ?>" alt="<?= e($b['name']) ?>" class="w-16 h-16 object-contain group-hover:scale-110 transition-transform duration-300 mb-3" loading="lazy">
+                <?php else: ?>
+                <div class="w-16 h-16 bg-gray-50 rounded-xl flex items-center justify-center mb-3">
+                    <i data-lucide="tag" class="w-8 h-8 text-gray-200"></i>
+                </div>
+                <?php endif; ?>
+                <span class="text-sm font-medium text-gray-900 group-hover:text-amber-600 transition-colors text-center truncate w-full"><?= e($b['name']) ?></span>
+            </a>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <?php if (!empty($products ?? [])): ?>
     <!-- Sort -->
     <div class="flex items-center justify-between mb-6">
@@ -141,7 +192,7 @@
     </div>
     <?php endif; ?>
 
-    <?php else: ?>
+    <?php elseif (empty($searchCategories ?? []) && empty($searchBrands ?? [])): ?>
     <!-- No Results -->
     <div class="text-center py-20 bg-white border border-gray-200 rounded-2xl">
         <div class="w-20 h-20 mx-auto mb-4 bg-gray-100 rounded-2xl flex items-center justify-center">

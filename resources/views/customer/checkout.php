@@ -11,6 +11,11 @@
 </div>
 <?php else: ?>
 <?php
+// Load cities from database
+$cities = array_column(Database::select("SELECT name FROM shipping_cities WHERE is_active = 1 ORDER BY sort_order, name") ?: [], 'name');
+if (empty($cities)) {
+    $cities = ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret', 'Thika', 'Malindi', 'Kitale', 'Nyeri', 'Nanyuki'];
+}
 // Load active payment methods from settings
 $activePaymentMethods = [];
 $methodConfigs = [
@@ -119,9 +124,8 @@ $colorMap = [
                             <select name="city" required class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white">
                                 <option value="">Select city</option>
                                 <?php
-                                $cities = ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret', 'Thika', 'Malindi', 'Kitale', 'Nyeri', 'Nanyuki'];
                                 foreach ($cities as $city): ?>
-                                <option value="<?= $city ?>" <?= ($shipping['city'] ?? Auth::user()['city'] ?? '') == $city ? 'selected' : '' ?>><?= $city ?></option>
+                                <option value="<?= e($city) ?>" <?= ($shipping['city'] ?? Auth::user()['city'] ?? '') == $city ? 'selected' : '' ?>><?= e($city) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>

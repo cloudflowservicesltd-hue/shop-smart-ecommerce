@@ -1,9 +1,15 @@
+<?php
+$loginLogo = Database::selectOne("SELECT value FROM settings WHERE `key` = 'login_logo'")['value'] ?? '';
+$loginTitle = Database::selectOne("SELECT value FROM settings WHERE `key` = 'login_title'")['value'] ?? 'ShopSmart';
+$loginSubtitle = Database::selectOne("SELECT value FROM settings WHERE `key` = 'login_subtitle'")['value'] ?? 'AI-Powered Ecommerce & POS';
+$loginDescription = Database::selectOne("SELECT value FROM settings WHERE `key` = 'login_description'")['value'] ?? 'Complete business solution with intelligent marketing, real-time inventory, and seamless payment processing.';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - ShopSmart</title>
+    <title>Login - <?= e($loginTitle) ?></title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,11 +27,15 @@
         </div>
         <div class="relative z-10">
             <div class="flex items-center gap-2 mb-8">
+                <?php if ($loginLogo): ?>
+                <img src="<?= e($loginLogo) ?>" alt="<?= e($loginTitle) ?>" class="w-10 h-10 rounded-xl object-cover">
+                <?php else: ?>
                 <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center"><i data-lucide="shopping-bag" class="w-6 h-6"></i></div>
-                <span class="font-heading font-bold text-2xl">Shop<span class="text-amber-200">Smart</span></span>
+                <?php endif; ?>
+                <span class="font-heading font-bold text-2xl"><?= e($loginTitle) ?></span>
             </div>
-            <h2 class="font-heading text-3xl font-bold mb-4">AI-Powered Ecommerce & POS</h2>
-            <p class="text-amber-100 text-sm leading-relaxed max-w-md">Complete business solution with intelligent marketing, real-time inventory, and seamless payment processing.</p>
+            <h2 class="font-heading text-3xl font-bold mb-4"><?= e($loginSubtitle) ?></h2>
+            <p class="text-amber-100 text-sm leading-relaxed max-w-md"><?= e($loginDescription) ?></p>
         </div>
         <div class="relative z-10 grid grid-cols-2 gap-4 mt-8">
             <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4"><i data-lucide="package" class="w-6 h-6 mb-2"></i><p class="text-sm font-medium">Smart Inventory</p><p class="text-xs text-amber-200 mt-1">Real-time stock tracking with AI forecasts</p></div>
@@ -39,8 +49,12 @@
     <div class="flex-1 flex items-center justify-center p-6">
         <div class="w-full max-w-md">
             <div class="lg:hidden flex items-center gap-2 mb-8 justify-center">
+                <?php if ($loginLogo): ?>
+                <img src="<?= e($loginLogo) ?>" alt="<?= e($loginTitle) ?>" class="w-9 h-9 rounded-lg object-cover">
+                <?php else: ?>
                 <div class="w-9 h-9 bg-amber-600 rounded-lg flex items-center justify-center"><i data-lucide="shopping-bag" class="w-5 h-5 text-white"></i></div>
-                <span class="font-heading font-bold text-xl">Shop<span class="text-amber-600">Smart</span></span>
+                <?php endif; ?>
+                <span class="font-heading font-bold text-xl"><?= e($loginTitle) ?></span>
             </div>
 
             <h1 class="font-heading font-bold text-2xl text-gray-900 mb-1">Welcome back</h1>

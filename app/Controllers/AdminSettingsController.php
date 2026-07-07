@@ -130,9 +130,39 @@ class AdminSettingsController extends BaseController
         }
 
         // General text fields
-        $fields = ['store_name','store_tagline','store_email','store_phone','store_address','currency','currency_symbol','tax_rate','shipping_threshold','shipping_banner_text'];
+        $fields = ['store_name','store_tagline','store_email','store_phone','store_address','currency','currency_symbol','tax_rate','shipping_threshold','shipping_banner_text','login_title','login_subtitle','login_description'];
         foreach ($fields as $f) {
             $upsert($f, Request::post($f, ''), 'general');
+        }
+
+        // Login logo upload
+        if (isset($_FILES['login_logo']) && $_FILES['login_logo']['error'] === UPLOAD_ERR_OK) {
+            $file = $_FILES['login_logo'];
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            $allowed = ['jpg','jpeg','png','gif','webp','svg'];
+            if (in_array($ext, $allowed) && $file['size'] <= 2*1024*1024) {
+                $uploadDir = ROOT_PATH . '/public/uploads/settings/';
+                if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+                $filename = 'login_logo_' . uniqid() . '.' . $ext;
+                if (move_uploaded_file($file['tmp_name'], $uploadDir . $filename)) {
+                    $oldLogo = Database::selectOne("SELECT value FROM settings WHERE `key` = 'login_logo'");
+                    if ($oldLogo && $oldLogo['value']) {
+                        $oldPath = ROOT_PATH . '/public' . $oldLogo['value'];
+                        if (file_exists($oldPath)) unlink($oldPath);
+                    }
+                    $upsert('login_logo', '/uploads/settings/' . $filename, 'general');
+                }
+            }
+        }
+
+        // Remove login logo
+        if (Request::post('remove_login_logo') == '1') {
+            $oldLogo = Database::selectOne("SELECT value FROM settings WHERE `key` = 'login_logo'");
+            if ($oldLogo && $oldLogo['value']) {
+                $oldPath = ROOT_PATH . '/public' . $oldLogo['value'];
+                if (file_exists($oldPath)) unlink($oldPath);
+            }
+            $upsert('login_logo', '', 'general');
         }
 
         // Notification checkboxes

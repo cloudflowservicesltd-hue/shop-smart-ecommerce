@@ -610,6 +610,7 @@ class CustomerPaymentController extends BaseController
                             ]],
                             'application_context' => [
                                 'brand_name' => $this->getSetting('store_name') ?: 'ShopSmart',
+                                'user_action' => 'CONTINUE',
                                 'return_url' => $successUrl,
                                 'cancel_url' => $cancelUrl,
                             ],
@@ -986,6 +987,7 @@ class CustomerPaymentController extends BaseController
                             ]],
                             'application_context' => [
                                 'brand_name' => $this->getSetting('store_name') ?: 'ShopSmart',
+                                'user_action' => 'CONTINUE',
                                 'return_url' => $successUrl,
                                 'cancel_url' => $cancelUrl,
                             ],
@@ -1225,14 +1227,74 @@ class CustomerPaymentController extends BaseController
     public function paypalCallback(): void
     {
         $orderId = (int)Request::query('order_id', 0);
-        if ($orderId) {
-            Database::update('orders', [
-                'payment_status' => 'paid',
-                'status' => 'processing',
-                'payment_reference' => Request::query('token', 'paypal'),
-                'updated_at' => date('Y-m-d H:i:s'),
-            ], 'id = ?', [$orderId]);
-            $this->processReferralCommission($orderId);
+        $token = Request::query('token', '');
+
+        if ($orderId && $token) {
+            $order = Database::selectOne("SELECT * FROM orders WHERE id = ?", [$orderId]);
+            if ($order && $order['payment_status'] !== 'paid') {
+                // Capture the payment via PayPal API
+                $ppClientId = $this->getSetting('paypal_client_id');
+                $ppSecret = $this->getSetting('paypal_secret');
+                $ppEnv = $this->getSetting('paypal_env') ?: 'sandbox';
+                $ppBase = $ppEnv === 'production'
+                    ? 'https://api-m.paypal.com'
+                    : 'https://api-m.sandbox.paypal.com';
+
+                if (!empty($ppClientId) && !empty($ppSecret)) {
+                    $tokenResult = $this->curlRequest($ppBase . '/v1/oauth2/token', [
+                        CURLOPT_USERPWD    => $ppClientId . ':' . $ppSecret,
+                        CURLOPT_POST       => true,
+                        CURLOPT_POSTFIELDS => 'grant_type=client_credentials',
+                    ]);
+                    $tokenData = json_decode($tokenResult['response'], true);
+                    $accessToken = $tokenData['access_token'] ?? '';
+
+                    if (!empty($accessToken)) {
+                        $captureResult = $this->curlRequest($ppBase . '/v2/checkout/orders/' . urlencode($token) . '/capture', [
+                            CURLOPT_HTTPHEADER  => [
+                                'Content-Type: application/json',
+                                'Authorization: Bearer ' . $accessToken,
+                            ],
+                            CURLOPT_POST       => true,
+                            CURLOPT_POSTFIELDS => '{}',
+                        ]);
+                        $captureData = json_decode($captureResult['response'], true);
+                        $captureStatus = $captureData['status'] ?? '';
+
+                        if ($captureStatus === 'COMPLETED') {
+                            $captureId = $captureData['purchase_units'][0]['payments']['captures'][0]['id'] ?? $token;
+                            Database::update('orders', [
+                                'payment_status' => 'paid',
+                                'status' => 'processing',
+                                'payment_reference' => $captureId,
+                                'updated_at' => date('Y-m-d H:i:s'),
+                            ], 'id = ?', [$orderId]);
+
+                            Database::insert('transactions', [
+                                'order_id' => $orderId,
+                                'payment_method' => 'paypal',
+                                'amount' => $order['total'],
+                                'reference' => $captureId,
+                                'status' => 'completed',
+                                'created_at' => date('Y-m-d H:i:s'),
+                            ]);
+
+                            $this->processReferralCommission($orderId);
+                        } else {
+                            $this->posLog('PAYPAL_CAPTURE_FAILED', ['order_id' => $orderId, 'response' => $captureData]);
+                        }
+                    }
+                } else {
+                    // No credentials — still mark as paid for testing
+                    Database::update('orders', [
+                        'payment_status' => 'paid',
+                        'status' => 'processing',
+                        'payment_reference' => $token,
+                        'updated_at' => date('Y-m-d H:i:s'),
+                    ], 'id = ?', [$orderId]);
+                    $this->processReferralCommission($orderId);
+                }
+            }
         }
         Session::set('last_order_id', $orderId);
         Redirect::to('/order-success');

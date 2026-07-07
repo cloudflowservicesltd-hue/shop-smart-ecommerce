@@ -170,6 +170,30 @@ $isEdit = $product !== null;
                         <input type="file" name="images[]" accept="image/*" multiple class="mt-2 text-sm">
                         <p class="text-xs text-gray-400 mt-2">Upload multiple images. First image will be the main product photo.</p>
                     </div>
+                    <script>
+                    document.querySelector('input[name="images[]"]').addEventListener('change', function(e) {
+                        const container = document.getElementById('imagePreviewContainer');
+                        if (!container) {
+                            const div = document.createElement('div');
+                            div.id = 'imagePreviewContainer';
+                            div.className = 'mt-3 grid grid-cols-4 gap-2';
+                            this.closest('.bg-white').querySelector('.border-dashed').after(div);
+                        }
+                        const previewContainer = document.getElementById('imagePreviewContainer');
+                        previewContainer.innerHTML = '';
+                        Array.from(this.files).forEach(file => {
+                            if (!file.type.startsWith('image/')) return;
+                            const reader = new FileReader();
+                            reader.onload = function(ev) {
+                                const img = document.createElement('div');
+                                img.className = 'relative rounded-lg overflow-hidden border border-gray-200';
+                                img.innerHTML = '<img src="' + ev.target.result + '" class="w-full h-20 object-cover"><button type="button" onclick="this.parentElement.remove()" class="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">&times;</button>';
+                                previewContainer.appendChild(img);
+                            };
+                            reader.readAsDataURL(file);
+                        });
+                    });
+                    </script>
                     <?php if ($isEdit): 
                         $existingImages = Database::select("SELECT * FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, sort_order", [$product['id']]);
                         if (!empty($existingImages)):
@@ -177,7 +201,7 @@ $isEdit = $product !== null;
                     <div class="mt-3 grid grid-cols-3 gap-2" id="existingImages">
                         <?php foreach ($existingImages as $ei): ?>
                         <div class="relative group">
-                            <img src="<?= e($ei['image_path']) ?>" class="w-full h-20 object-cover rounded-lg border border-gray-200">
+                            <img src="<?= e($ei['image_path']) ?>" onclick="window.open(this.src, '_blank')" class="w-full h-20 object-cover rounded-lg border border-gray-200 cursor-pointer">
                             <?php if ($ei['is_primary']): ?><span class="absolute top-1 left-1 bg-amber-600 text-white text-[9px] px-1.5 py-0.5 rounded font-medium">Main</span><?php endif; ?>
                             <button type="button" onclick="deleteImage(<?= $product['id'] ?>, <?= $ei['id'] ?>, this)" class="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
                         </div>
