@@ -312,6 +312,40 @@ class AdminSettingsController extends BaseController
     }
 
     /**
+     * Test IntaSend connection.
+     * Route: POST /admin/settings/intasend-test
+     */
+    public function intasendTestConnection(): void
+    {
+        header('Content-Type: application/json');
+
+        // Temporarily save the posted settings so IntaSendAPI can read them
+        $upsert = function($key, $value, $group = 'intasend') {
+            $existing = Database::selectOne("SELECT id FROM settings WHERE `key` = ?", [$key]);
+            if ($existing) {
+                Database::update('settings', ['value' => $value, 'updated_at' => date('Y-m-d H:i:s')], '`key` = ?', [$key]);
+            } else {
+                Database::insert('settings', ['key' => $key, 'value' => $value, 'group_name' => $group, 'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s')]);
+            }
+        };
+
+        $pubKey  = Request::post('intasend_publishable_key', '');
+        $secret  = Request::post('intasend_secret', '');
+        $testMode = Request::post('intasend_test_mode') === '1' ? '1' : '0';
+
+        // Only update if values were posted (not empty from test button)
+        if (!empty($pubKey)) $upsert('intasend_publishable_key', $pubKey);
+        if (!empty($secret)) $upsert('intasend_secret', $secret);
+        $upsert('intasend_test_mode', $testMode);
+
+        require_once ROOT_PATH . '/app/Core/IntaSendAPI.php';
+        $result = IntaSendAPI::testConnection();
+
+        echo json_encode($result, JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+
+    /**
      * Test Pesapal connection.
      * Route: POST /admin/settings/pesapal-test
      */

@@ -506,6 +506,7 @@ $router->group(['prefix' => 'admin', 'middleware' => 'admin'], function($router)
     $router->post('/settings/cities', 'AdminSettingsController@cities');
     $router->post('/settings/make-test', 'AdminSettingsController@makeTestWebhook');
     $router->get('/settings/make-logs', 'AdminSettingsController@makeWebhookLogs');
+    $router->post('/settings/intasend-test', 'AdminSettingsController@intasendTestConnection');
     $router->post('/settings/pesapal-test', 'AdminSettingsController@pesapalTestConnection');
 
     // SEO & Sitemap
