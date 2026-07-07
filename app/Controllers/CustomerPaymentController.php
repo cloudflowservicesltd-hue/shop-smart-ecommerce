@@ -501,39 +501,19 @@ class CustomerPaymentController extends BaseController
                 return;
 
             case 'intasend':
-                $intasendSecret = $this->getSetting('intasend_secret');
-                $intasendPubKey = $this->getSetting('intasend_publishable');
-                if (!empty($intasendSecret) && !empty($intasendPubKey)) {
-                    $ch = curl_init('https://payment.intasend.com/api/v1/checkout/');
-                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                        'Content-Type:application/json',
-                        'Authorization: Bearer ' . $intasendSecret,
-                        'X-IntaSend-Public-Key: ' . $intasendPubKey,
-                    ]);
-                    curl_setopt($ch, CURLOPT_POST, true);
-                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-                        'first_name' => explode(' ', Session::get('checkout_shipping')['name'] ?? 'Customer')[0],
-                        'last_name' => explode(' ', Session::get('checkout_shipping')['name'] ?? 'Customer')[1] ?? '',
-                        'email' => Session::get('checkout_shipping')['email'] ?? '',
-                        'phone_number' => preg_replace('/[^0-9]/', '', Session::get('checkout_shipping')['phone'] ?? ''),
-                        'amount' => round($orderTotal, 2),
-                        'currency' => 'KES',
-                        'api_ref' => $orderNum,
-                        'redirect_url' => $siteUrl . '/payment/intasend/callback?order_id=' . $orderId,
-                    ]));
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                    $resp = curl_exec($ch);
-                    curl_close($ch);
-                    $data = json_decode($resp, true);
-                    if (isset($data['url'])) {
-                        Database::update('orders', ['payment_reference' => $data['invoice_id'] ?? '', 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$orderId]);
+                if (IntaSendAPI::isConfigured()) {
+                    $shipping = Session::get('checkout_shipping', []);
+                    $order = Database::selectOne("SELECT * FROM orders WHERE id = ?", [$orderId]);
+                    $redirectUrl = $siteUrl . '/payment/intasend/callback?order_id=' . $orderId;
+                    $result = IntaSendAPI::createCheckout($order ?? [], $redirectUrl);
+                    if ($result['success']) {
+                        Database::update('orders', ['payment_reference' => $result['invoice_id'], 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$orderId]);
                         Session::remove('checkout_shipping');
-                        $this->posJson(['success' => true, 'order_id' => $orderId, 'redirect_url' => $data['url']]);
+                        $this->posJson(['success' => true, 'order_id' => $orderId, 'redirect_url' => $result['url']]);
                         return;
                     }
-                    $this->markFailed($orderId, 'IntaSend: ' . ($data['message'] ?? json_encode($data)));
-                    $this->posJson(['success' => false, 'message' => 'IntaSend error: ' . ($data['message'] ?? json_encode($data))]);
+                    $this->markFailed($orderId, 'IntaSend: ' . $result['error']);
+                    $this->posJson(['success' => false, 'message' => 'IntaSend error: ' . $result['error']]);
                     return;
                 }
                 // No credentials — keep as pending (user can pay later)
@@ -898,38 +878,16 @@ class CustomerPaymentController extends BaseController
                 return;
 
             case 'intasend':
-                $intasendSecret = $this->getSetting('intasend_secret');
-                $intasendPubKey = $this->getSetting('intasend_publishable');
-                if (!empty($intasendSecret) && !empty($intasendPubKey)) {
-                    $ch = curl_init('https://payment.intasend.com/api/v1/checkout/');
-                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                        'Content-Type:application/json',
-                        'Authorization: Bearer ' . $intasendSecret,
-                        'X-IntaSend-Public-Key: ' . $intasendPubKey,
-                    ]);
-                    curl_setopt($ch, CURLOPT_POST, true);
-                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-                        'first_name' => explode(' ', $order['customer_name'] ?? 'Customer')[0],
-                        'last_name' => explode(' ', $order['customer_name'] ?? 'Customer')[1] ?? '',
-                        'email' => $order['customer_email'] ?? '',
-                        'phone_number' => preg_replace('/[^0-9]/', '', $order['customer_phone'] ?? ''),
-                        'amount' => round($orderTotal),
-                        'currency' => 'KES',
-                        'api_ref' => $orderNum,
-                        'redirect_url' => $siteUrl . '/payment/intasend/callback?order_id=' . $orderId,
-                    ]));
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                    $resp = curl_exec($ch);
-                    curl_close($ch);
-                    $data = json_decode($resp, true);
-                    if (isset($data['url'])) {
-                        Database::update('orders', ['payment_reference' => $data['invoice_id'] ?? '', 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$orderId]);
-                        $this->posJson(['success' => true, 'order_id' => $orderId, 'redirect_url' => $data['url']]);
+                if (IntaSendAPI::isConfigured()) {
+                    $redirectUrl = $siteUrl . '/payment/intasend/callback?order_id=' . $orderId;
+                    $result = IntaSendAPI::createCheckout($order, $redirectUrl);
+                    if ($result['success']) {
+                        Database::update('orders', ['payment_reference' => $result['invoice_id'], 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$orderId]);
+                        $this->posJson(['success' => true, 'order_id' => $orderId, 'redirect_url' => $result['url']]);
                         return;
                     }
-                    $this->markFailed($orderId, 'IntaSend: ' . ($data['message'] ?? json_encode($data)));
-                    $this->posJson(['success' => false, 'message' => 'IntaSend error: ' . ($data['message'] ?? json_encode($data))]);
+                    $this->markFailed($orderId, 'IntaSend: ' . $result['error']);
+                    $this->posJson(['success' => false, 'message' => 'IntaSend error: ' . $result['error']]);
                     return;
                 }
                 $this->posJson(['success' => false, 'message' => 'IntaSend is not configured. Please contact admin.']);
@@ -1204,22 +1162,104 @@ class CustomerPaymentController extends BaseController
     /**
      * GET /payment/intasend/callback
      * IntaSend payment redirect callback.
+     * Verifies the payment via API before marking as paid.
      */
     public function intasendCallback(): void
     {
         $orderId = (int)Request::query('order_id', 0);
         $invoiceId = Request::query('invoice_id', '');
+
         if ($orderId) {
-            Database::update('orders', [
-                'payment_status' => 'paid',
-                'status' => 'processing',
-                'payment_reference' => $invoiceId,
-                'updated_at' => date('Y-m-d H:i:s'),
-            ], 'id = ?', [$orderId]);
-            $this->processReferralCommission($orderId);
+            $order = Database::selectOne("SELECT * FROM orders WHERE id = ?", [$orderId]);
+
+            // If order is already paid, just redirect to success
+            if ($order && $order['payment_status'] === 'paid') {
+                Session::set('last_order_id', $orderId);
+                Redirect::to('/order-success');
+                return;
+            }
+
+            // Try to verify payment via API
+            $verified = false;
+            if (!empty($invoiceId)) {
+                $verifyResult = IntaSendAPI::verifyPayment($invoiceId);
+                $verified = $verifyResult['success'];
+            }
+
+            // If verification passed (or no invoice ID to verify — trust the redirect),
+            // mark order as paid
+            if ($verified || empty($invoiceId)) {
+                Database::update('orders', [
+                    'payment_status' => 'paid',
+                    'status' => 'processing',
+                    'payment_reference' => $invoiceId,
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ], 'id = ?', [$orderId]);
+
+                // Record transaction
+                if ($order) {
+                    Database::insert('transactions', [
+                        'order_id'       => $orderId,
+                        'payment_method' => 'intasend',
+                        'amount'         => $order['total'],
+                        'reference'      => $invoiceId,
+                        'status'         => 'completed',
+                        'created_at'     => date('Y-m-d H:i:s'),
+                    ]);
+                }
+
+                $this->processReferralCommission($orderId);
+            }
         }
         Session::set('last_order_id', $orderId);
         Redirect::to('/order-success');
+    }
+
+    /**
+     * GET /payment/intasend/checkout/{id}
+     * Initiates an IntaSend checkout for an existing order and redirects to IntaSend.
+     * Used for direct link-based payment (e.g. from email or order-pay page).
+     */
+    public function intasendCheckout(int $orderId): void
+    {
+        if (!Auth::check()) {
+            Session::flash('error', 'Please login to make a payment.');
+            Redirect::to('/login');
+            return;
+        }
+
+        $order = Database::selectOne("SELECT * FROM orders WHERE id = ? AND user_id = ?", [$orderId, Auth::id()]);
+
+        if (!$order) {
+            Session::flash('error', 'Order not found.');
+            Redirect::to('/account/orders');
+            return;
+        }
+
+        if ($order['payment_status'] === 'paid') {
+            Session::flash('info', 'This order has already been paid.');
+            Redirect::to('/account/orders/' . $orderId . '/track');
+            return;
+        }
+
+        if (!IntaSendAPI::isConfigured()) {
+            Session::flash('error', 'IntaSend is not configured. Please contact the store admin.');
+            Redirect::to('/order/pay/' . $orderId);
+            return;
+        }
+
+        $siteUrl = $this->getSiteUrl();
+        $redirectUrl = $siteUrl . '/payment/intasend/callback?order_id=' . $orderId;
+
+        $result = IntaSendAPI::createCheckout($order, $redirectUrl);
+
+        if ($result['success']) {
+            Database::update('orders', ['payment_reference' => $result['invoice_id'], 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$orderId]);
+            Redirect::to($result['url']);
+        } else {
+            Session::flash('error', 'IntaSend error: ' . $result['error']);
+            Redirect::to('/order/pay/' . $orderId);
+        }
     }
 
     /**

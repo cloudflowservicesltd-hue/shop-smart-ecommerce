@@ -130,7 +130,7 @@ class AdminSettingsController extends BaseController
         }
 
         // General text fields
-        $fields = ['store_name','store_tagline','store_email','store_phone','store_address','currency','currency_symbol','tax_rate','shipping_threshold','shipping_banner_text','login_title','login_subtitle','login_description','category_circle_size'];
+        $fields = ['store_name','store_tagline','store_email','store_phone','store_address','currency','currency_symbol','tax_rate','shipping_threshold','shipping_banner_text','login_title','login_subtitle','login_description','category_circle_size','logo_height'];
         foreach ($fields as $f) {
             $upsert($f, Request::post($f, ''), 'general');
         }
@@ -184,6 +184,11 @@ class AdminSettingsController extends BaseController
 
         // Blotato API key
         $upsert('blotato_api_key', Request::post('blotato_api_key', ''), 'blotato');
+
+        // IntaSend integration
+        $upsert('intasend_publishable_key', Request::post('intasend_publishable_key', ''), 'intasend');
+        $upsert('intasend_secret', Request::post('intasend_secret', ''), 'intasend');
+        $upsert('intasend_test_mode', Request::post('intasend_test_mode', '0'), 'intasend');
 
         // Make.com integration
         $upsert('make_webhook_url', Request::post('make_webhook_url', ''), 'make');
