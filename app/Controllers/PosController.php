@@ -360,8 +360,17 @@ class PosController extends BaseController
 
             if ($curlErr) { throw new \Exception('cURL error: ' . $curlErr); }
 
-            if (!empty($data['success']) && isset($data['data']['checkout_request_id'])) {
-                $checkoutId = $data['data']['checkout_request_id'];
+            // Find checkout_request_id from various possible response structures
+            $checkoutId = $data['data']['checkout_request_id']
+                ?? $data['checkout_request_id']
+                ?? $data['CheckoutRequestID']
+                ?? null;
+
+            $isSuccess = !empty($data['success'])
+                || ($httpCode >= 200 && $httpCode < 300 && $checkoutId)
+                || (isset($data['message']) && stripos($data['message'], 'STK Push initiated') !== false);
+
+            if ($isSuccess && $checkoutId) {
                 Session::set('mpesa_stk_' . $checkoutId, [
                     'CheckoutRequestID' => $checkoutId, 'provider' => 'cloudone',
                     'phone' => $phone, 'amount' => $amount, 'orderRef' => $orderRef, 'created_at' => time(),
@@ -369,7 +378,19 @@ class PosController extends BaseController
                 $this->posJson([
                     'success' => true, 'CheckoutRequestID' => $checkoutId,
                     'amount' => (int)round($amount),
-                    'message' => 'CloudOne STK push sent to ' . $phone . '. Please confirm on your phone.',
+                    'message' => 'CloudOne success: STK Push initiated. Customer will receive a prompt on their phone.',
+                ]);
+            } elseif ($isSuccess) {
+                // Success response but no checkout_request_id — still treat as success
+                $fallbackId = $data['data']['id'] ?? $data['id'] ?? uniqid('co_');
+                Session::set('mpesa_stk_' . $fallbackId, [
+                    'CheckoutRequestID' => $fallbackId, 'provider' => 'cloudone',
+                    'phone' => $phone, 'amount' => $amount, 'orderRef' => $orderRef, 'created_at' => time(),
+                ]);
+                $this->posJson([
+                    'success' => true, 'CheckoutRequestID' => $fallbackId,
+                    'amount' => (int)round($amount),
+                    'message' => 'CloudOne success: STK Push initiated. Customer will receive a prompt on their phone.',
                 ]);
             } else {
                 $errorMsg = $data['message'] ?? ($data['error'] ?? 'STK push request failed');

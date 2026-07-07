@@ -18,6 +18,7 @@ $cashier = Auth::user()['name'] ?? 'Cashier';
 $storeName = Database::selectOne("SELECT value FROM settings WHERE `key` = 'store_name'")['value'] ?? 'ShopSmart';
 $storePhone = Database::selectOne("SELECT value FROM settings WHERE `key` = 'store_phone'")['value'] ?? '+254 700 000 000';
 $storeAddr = Database::selectOne("SELECT value FROM settings WHERE `key` = 'store_address'")['value'] ?? 'Nairobi, Kenya';
+$storeLogo = Database::selectOne("SELECT value FROM settings WHERE `key` = 'store_logo'")['value'] ?? '';
 
 // Build POS payment methods: Cash is always first, then enabled gateways + custom methods
 $posPayMethods = [
@@ -739,6 +740,7 @@ try {
         const currencySymbol = <?= json_encode($posCurrencySymbol) ?>;
     const storePhone = <?= json_encode($storePhone) ?>;
     const storeAddr = <?= json_encode($storeAddr) ?>;
+    const storeLogo = <?= json_encode($storeLogo) ?>;
     let currentPayMethod = 'cash';
     let lastReceiptData = null;
 
@@ -1211,11 +1213,13 @@ try {
             '</div>'
         );
 
+        var logoHtml = storeLogo
+            ? '<img src="' + storeLogo + '" alt="' + storeName + '" class="w-16 h-16 object-contain mx-auto mb-3 rounded-lg">'
+            : '<div class="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3"><svg class="w-7 h-7 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>';
+
         var receiptHtml =
             '<div class="px-6 pt-5 pb-2">' +
-            '<div class="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">' +
-            '<svg class="w-7 h-7 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' +
-            '</div>' +
+            logoHtml +
             '<h3 class="font-heading font-bold text-lg text-center">Sale Complete!</h3>' +
             '<p class="text-xs text-gray-400 text-center mb-4">' + d.orderNum + '</p>' +
             '</div>' +
@@ -1265,8 +1269,12 @@ try {
         var isCash = lastReceiptData.method === 'cash';
         var methodLabel = { cash: 'CASH', mpesa: 'M-PESA', card: 'CARD', pesapal: 'PESAPAL' }[lastReceiptData.method] || lastReceiptData.method.toUpperCase();
         var items = lastReceiptData.cart || [];
+        var printLogoHtml = storeLogo
+            ? '<div style="text-align:center;margin-bottom:6px;"><img src="' + storeLogo + '" style="max-width:64px;max-height:64px;object-fit:contain;" /></div>'
+            : '';
         var printHtml = '<div style="font-family:monospace;font-size:12px;max-width:80mm;margin:0 auto;padding:2mm;color:#000;">' +
             '<div style="text-align:center;margin-bottom:8px;">' +
+            printLogoHtml +
             '<h2 style="font-size:16px;font-weight:bold;margin:0;">' + storeName + '</h2>' +
             '<p style="margin:2px 0;color:#555;">' + storeAddr + '</p>' +
             '<p style="margin:2px 0;color:#555;">Tel: ' + storePhone + '</p>' +
