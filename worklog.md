@@ -275,3 +275,52 @@ Stage Summary:
 - Admin can configure IntaSend via Settings page (publishable key, secret key, test mode toggle)
 - Payment verification on callback prevents false positives
 - `composer install` needed on server to download the IntaSend SDK
+---
+Task ID: 4
+Agent: Pesapal Integration Agent
+Task: Integrate Pesapal payment gateway
+
+Work Log:
+- Created `app/Core/PesapalAPI.php` service class (NO namespace, follows project pattern) with:
+  - `getAuthToken()` — POST to /api/Auth/RequestToken with consumer_key + consumer_secret in body
+  - `registerIPN($notificationUrl, $method)` — POST to /api/URLSetup/RegisterIPN, auto-saves IPN ID
+  - `getIpnList()` — GET /api/URLSetup/GetIpnList
+  - `submitOrder($order, $redirectUrl, $ipnId, $currency)` — POST to /api/Transactions/SubmitOrderRequest
+  - `getTransactionStatus($trackingId)` — GET /api/Transactions/GetTransactionStatus
+  - `checkout($order, $callbackUrl, $ipnUrl)` — convenience method: auto-registers IPN if needed, then submits order
+  - `testConnection()` — tests auth token retrieval
+  - `isConfigured()`, `isEnabled()`, `isTestMode()` — settings helpers with fallback to legacy keys
+  - Correct v3 base URLs: sandbox=`https://cybqa.pesapal.com/pesapalv3`, production=`https://pay.pesapal.com/v3`
+- Added `.env` keys: `PESAPAL_CONSUMER_KEY` and `PESAPAL_CONSUMER_SECRET`
+- Added Pesapal settings card to `resources/views/admin/settings.php`:
+  - Consumer Key input
+  - Consumer Secret input (password type with toggle button)
+  - Test Mode toggle (styled switch)
+  - Test Connection button (AJAX, shows inline success/fail result)
+  - Tip linking to Payment Settings for IPN ID management
+- Updated `AdminSettingsController.php`:
+  - `update()` method now saves `pesapal_consumer_key`, `pesapal_consumer_secret`, `pesapal_test_mode`
+  - Syncs to legacy keys (`pesapal_key`, `pesapal_secret`, `pesapal_env`) for backward compatibility
+  - Added `pesapalTestConnection()` — POST endpoint that saves posted settings temporarily, calls PesapalAPI::testConnection(), returns JSON
+- Added admin route: `POST /admin/settings/pesapal-test`
+- Added 3 public payment routes to `routes/web.php`:
+  - `GET /payment/pesapal/checkout/{order_id}` — re-initiate Pesapal payment for pending order
+  - `GET /payment/pesapal/callback` — Pesapal redirect after payment (verifies via API)
+  - `POST /payment/pesapal/ipn` — Pesapal IPN webhook handler
+- Updated `CustomerPaymentController.php`:
+  - Replaced 2 inline Pesapal code blocks (in `initiate()` and `initiateOrderPay()`) with `PesapalAPI::checkout()` calls
+  - Added `pesapalCheckout($orderId)` — standalone route handler for re-payment
+  - Added `pesapalCallback()` — verifies payment via PesapalAPI::getTransactionStatus() before marking paid
+  - Added `pesapalIPN()` — webhook handler with logging, finds order by tracking ID, records transaction, processes referral commission
+  - Updated `pesapalRedirect()` — now calls `verifyAndCompletePesapalOrder()` instead of blindly marking as paid
+  - Added `verifyAndCompletePesapalOrder($orderId)` — shared helper that checks actual Pesapal status
+- Checkout and order-pay views already had Pesapal as a payment method option — no changes needed
+- Pushed to GitHub (commit a091cd6)
+
+Stage Summary:
+- 1 file created: `app/Core/PesapalAPI.php`
+- 5 files modified: `.env`, `AdminSettingsController.php`, `CustomerPaymentController.php`, `admin/settings.php`, `routes/web.php`
+- Pesapal v3 API fully integrated with proper auth, IPN registration, order submission, and status verification
+- Payment verification on both callback and IPN prevents false positives
+- Admin can configure Pesapal credentials and test connection from main Settings page
+- Legacy key names (`pesapal_key`/`pesapal_secret`/`pesapal_env`) maintained for backward compatibility
