@@ -1,0 +1,152 @@
+<?php
+ob_start();
+
+require_once __DIR__ . '/../../app/bootstrap.php';
+
+function sendJson($data, $code = 200) {
+    while (ob_get_level()) ob_end_clean();
+    if (!headers_sent()) {
+        http_response_code($code);
+        header('Content-Type: application/json');
+    }
+    echo json_encode($data);
+    exit;
+}
+
+if (!Auth::check() || !Auth::hasRole(['admin', 'super_admin', 'cashier'])) {
+    sendJson(['error' => 'Access denied'], 403);
+}
+
+$input = json_decode(file_get_contents('php://input'), true);
+$checkoutRequestId = $input['CheckoutRequestID'] ?? '';
+
+if (empty($checkoutRequestId)) {
+    sendJson(['error' => 'CheckoutRequestID is required'], 400);
+}
+
+// Check session first for callback result
+$sessionKey = 'mpesa_stk_' . $checkoutRequestId;
+$stored = Session::get($sessionKey);
+
+// Check if callback already received
+if ($stored && isset($stored['result_code'])) {
+    sendJson([
+        'status' => $stored['result_code'] === 0 ? 'success' : 'failed',
+        'resultCode' => $stored['result_code'],
+        'resultDesc' => $stored['result_desc'] ?? '',
+        'transactionCode' => $stored['mpesa_receipt'] ?? '',
+    ]);
+}
+
+// Get M-Pesa settings
+function getSetting($key) {
+    $row = Database::selectOne("SELECT value FROM settings WHERE `key` = ?", [$key]);
+    return $row ? $row['value'] : '';
+}
+
+$env = getSetting('mpesa_env') ?: 'sandbox';
+$consumerKey = getSetting('mpesa_consumer_key') ?: '';
+$consumerSecret = getSetting('mpesa_consumer_secret') ?: '';
+
+$baseUrl = $env === 'production'
+    ? 'https://api.safaricom.co.ke'
+    : 'https://sandbox.safaricom.co.ke';
+
+try {
+    $credentials = base64_encode($consumerKey . ':' . $consumerSecret);
+    $ch = curl_init($baseUrl . '/oauth/v1/generate?grant_type=client_credentials');
+    curl_setopt_array($ch, [
+        CURLOPT_HTTPHEADER => ['Authorization: Basic ' . $credentials],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_SSL_VERIFYPEER => false,
+    ]);
+    $tokenResponse = curl_exec($ch);
+    curl_close($ch);
+    $tokenData = json_decode($tokenResponse, true);
+    $accessToken = $tokenData['access_token'] ?? '';
+
+    if (empty($accessToken)) {
+        sendJson(['status' => 'pending', 'message' => 'Could not verify status']);
+    }
+
+    $shortcode = getSetting('mpesa_shortcode') ?: '174379';
+    $passkey = getSetting('mpesa_passkey') ?: '';
+    $timestamp = date('YmdHis');
+    $password = base64_encode($shortcode . $passkey . $timestamp);
+
+    $ch = curl_init($baseUrl . '/mpesa/stkpushquery/v1/query');
+    curl_setopt_array($ch, [
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $accessToken,
+            'Content-Type: application/json',
+        ],
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode([
+            'BusinessShortCode' => $shortcode,
+            'Password' => $password,
+            'Timestamp' => $timestamp,
+            'CheckoutRequestID' => $checkoutRequestId,
+        ]),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_SSL_VERIFYPEER => false,
+    ]);
+    $queryResponse = curl_exec($ch);
+    curl_close($ch);
+
+    $queryData = json_decode($queryResponse, true);
+
+    $resultCode = $queryData['ResultCode'] ?? '';
+    $resultDesc = $queryData['ResultDesc'] ?? '';
+
+    // Map result codes to status
+    if ($resultCode === '0') {
+        // Success - extract M-Pesa receipt number
+        $mpesaReceipt = '';
+        $callbackMetadata = $queryData['CallbackMetadata']['Item'] ?? [];
+        foreach ($callbackMetadata as $item) {
+            if (($item['Name'] ?? '') === 'MpesaReceiptNumber') {
+                $mpesaReceipt = $item['Value'] ?? '';
+            }
+        }
+        // Store in session
+        if ($stored) {
+            Session::set($sessionKey, array_merge($stored, [
+                'result_code' => 0,
+                'result_desc' => $resultDesc,
+                'mpesa_receipt' => $mpesaReceipt,
+            ]));
+        }
+        sendJson([
+            'status' => 'success',
+            'resultCode' => 0,
+            'resultDesc' => $resultDesc,
+            'transactionCode' => $mpesaReceipt,
+        ]);
+    } elseif ($resultCode === '1032' || $resultCode === '1037') {
+        // Cancelled by user or timeout
+        sendJson([
+            'status' => 'cancelled',
+            'resultCode' => $resultCode,
+            'resultDesc' => $resultDesc,
+        ]);
+    } elseif ($resultCode === '1') {
+        // Insufficient funds
+        sendJson([
+            'status' => 'failed',
+            'resultCode' => $resultCode,
+            'resultDesc' => $resultDesc,
+        ]);
+    } else {
+        // Still pending or unknown
+        sendJson([
+            'status' => empty($resultCode) ? 'pending' : 'unknown',
+            'resultCode' => $resultCode,
+            'resultDesc' => $resultDesc ?: 'Waiting for customer to confirm...',
+        ]);
+    }
+
+} catch (\Throwable $e) {
+    sendJson(['status' => 'error', 'message' => $e->getMessage()], 500);
+}

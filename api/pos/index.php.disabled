@@ -1,0 +1,178 @@
+<?php
+ob_start();
+
+ini_set('display_errors', '0');
+
+function sendJson($data, $code = 200) {
+    if (ob_get_level()) ob_end_clean();
+    http_response_code($code);
+    header('Content-Type: application/json');
+    echo json_encode($data);
+    exit;
+}
+
+try {
+
+// Bootstrap is already loaded by public/index.php, but load if called directly
+if (!defined('ROOT_PATH')) {
+    require_once dirname(dirname(__DIR__)) . '/app/bootstrap.php';
+}
+
+$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$uri = str_replace('/api/pos', '', $uri);
+
+// ============ PRODUCTS ============
+if ($uri === '/products' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+    try {
+        $category = $_GET['category'] ?? '';
+        $where = "is_active = 1 AND stock_quantity > 0";
+        $params = [];
+        if ($category) { $where .= " AND category_id = ?"; $params[] = (int)$category; }
+
+        $products = Database::select("SELECT p.id, p.name, p.price, p.stock_quantity, p.sku, p.barcode, (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = 1) as image FROM products p WHERE $where ORDER BY p.name LIMIT 100", $params);
+        sendJson($products);
+    } catch (\Throwable $e) {
+        sendJson(['error' => $e->getMessage()], 500);
+    }
+}
+
+// ============ CART ============
+if ($uri === '/cart' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    try {
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (isset($data['cart'])) {
+            Session::set('pos_cart', $data['cart']);
+            sendJson(['success' => true]);
+        } else {
+            sendJson(['error' => 'No cart data']);
+        }
+    } catch (\Throwable $e) {
+        sendJson(['error' => $e->getMessage()], 500);
+    }
+}
+
+// ============ CHECKOUT ============
+if ($uri === '/checkout' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    try {
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (!$data) {
+            sendJson(['error' => 'Invalid request body']);
+        }
+
+        $cart = $data['cart'] ?? [];
+        $method = $data['method'] ?? 'cash';
+        $subtotal = (float)($data['subtotal'] ?? 0);
+        $tax = (float)($data['tax'] ?? 0);
+        $total = (float)($data['total'] ?? 0);
+        $orderNum = $data['orderNum'] ?? 'POS-' . time();
+        $amountReceived = (float)($data['amount_received'] ?? 0);
+        $changeAmount = (float)($data['change_amount'] ?? 0);
+        $transactionCode = trim($data['transaction_code'] ?? '');
+
+        if (empty($cart)) {
+            sendJson(['error' => 'Empty cart']);
+        }
+
+        $paymentRef = $transactionCode ?: $orderNum;
+
+        // Insert order — base fields only (safe columns that always exist)
+        $orderData = [
+            'order_number' => $orderNum,
+            'customer_name' => 'Walk-in Customer',
+            'status' => 'completed',
+            'payment_method' => $method,
+            'payment_status' => 'paid',
+            'payment_reference' => $paymentRef,
+            'subtotal' => $subtotal,
+            'tax' => $tax,
+            'total' => $total,
+            'is_pos' => 1,
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ];
+
+        $orderId = Database::insert('orders', $orderData);
+
+        // Try to update amount_received and change_amount if columns exist
+        try {
+            Database::update('orders', [
+                'amount_received' => $amountReceived,
+                'change_amount' => $changeAmount,
+            ], 'id = ?', [$orderId]);
+        } catch (\Throwable $e) {
+            // Columns don't exist yet — that's OK, core order is saved
+        }
+
+        // Insert order items + reduce stock
+        foreach ($cart as $item) {
+            $productId = (int)($item['id'] ?? 0);
+            $costPrice = 0;
+            try {
+                $prod = Database::selectOne("SELECT cost_price, stock_quantity FROM products WHERE id = ?", [$productId]);
+                if ($prod) {
+                    $costPrice = (float)($prod['cost_price'] ?? 0);
+                    // Reduce stock
+                    $newStock = max(0, (int)$prod['stock_quantity'] - (int)($item['qty'] ?? 1));
+                    Database::update('products', ['stock_quantity' => $newStock], 'id = ?', [$productId]);
+                }
+            } catch (\Throwable $e) {}
+
+            Database::insert('order_items', [
+                'order_id' => $orderId,
+                'product_id' => $productId,
+                'product_name' => $item['name'] ?? '',
+                'quantity' => (int)($item['qty'] ?? 1),
+                'price' => (float)($item['price'] ?? 0),
+                'cost_price' => $costPrice,
+                'total' => (float)(($item['price'] ?? 0) * ($item['qty'] ?? 1)),
+                'created_at' => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        // Insert transaction
+        $gateway = 'cash';
+        if ($method === 'mpesa') $gateway = 'mpesa';
+        elseif ($method === 'card') $gateway = 'card';
+        elseif ($method === 'pesapal') $gateway = 'pesapal';
+
+        Database::insert('transactions', [
+            'order_id' => $orderId,
+            'payment_method' => $method,
+            'amount' => $total,
+            'currency' => 'KES',
+            'reference' => $paymentRef,
+            'status' => 'completed',
+            'gateway' => $gateway,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        sendJson(['success' => true, 'order_id' => $orderId, 'order_number' => $orderNum]);
+
+    } catch (\Throwable $e) {
+        sendJson(['error' => $e->getMessage(), 'file' => basename($e->getFile()), 'line' => $e->getLine()], 500);
+    }
+}
+
+// ============ Delegate to holds.php for /holds routes ============
+if (str_starts_with($uri, '/holds')) {
+    require_once dirname(__FILE__) . '/holds.php';
+    exit;
+}
+
+// ============ Delegate to stk-push.php ============
+if ($uri === '/stk-push' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_once dirname(__FILE__) . '/stk-push.php';
+    exit;
+}
+
+// ============ Delegate to stk-status.php ============
+if ($uri === '/stk-status' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+    require_once dirname(__FILE__) . '/stk-status.php';
+    exit;
+}
+
+sendJson(['error' => 'Not found'], 404);
+
+} catch (\Throwable $e) {
+    sendJson(['error' => $e->getMessage()], 500);
+}

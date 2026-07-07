@@ -1,0 +1,30 @@
+<?php
+ob_start();
+
+require_once __DIR__ . '/../../app/bootstrap.php';
+
+function sendJson($data, $code = 200) {
+    if (ob_get_level()) ob_end_clean();
+    http_response_code($code);
+    header('Content-Type: application/json');
+    echo json_encode($data);
+    exit;
+}
+
+if (!Auth::check() || !Auth::hasRole(['admin', 'super_admin', 'cashier'])) {
+    sendJson(['error' => 'Access denied'], 403);
+}
+
+// Accept both FormData and JSON
+$contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+if (str_contains($contentType, 'application/json')) {
+    $input = json_decode(file_get_contents('php://input'), true) ?? [];
+} else {
+    $input = $_POST;
+}
+
+$cartRaw = $input['cart'] ?? '[]';
+$cart = is_string($cartRaw) ? json_decode($cartRaw, true) : $cartRaw;
+if (!is_array($cart)) $cart = [];
+Session::set('pos_cart', $cart);
+sendJson(['success' => true]);

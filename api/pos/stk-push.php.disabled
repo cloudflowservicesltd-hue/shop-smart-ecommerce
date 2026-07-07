@@ -1,0 +1,146 @@
+<?php
+ob_start();
+require_once __DIR__ . '/../../app/bootstrap.php';
+
+function stkJson($data, $code = 200) {
+    while (ob_get_level()) ob_end_clean();
+    if (!headers_sent()) {
+        http_response_code($code);
+        header('Content-Type: application/json');
+    }
+    echo json_encode($data);
+    exit;
+}
+
+if (!Auth::check() || !Auth::hasRole(['admin', 'super_admin', 'cashier'])) {
+    stkJson(['error' => 'Access denied'], 403);
+}
+
+$input = json_decode(file_get_contents('php://input'), true);
+$phone = $input['phone'] ?? '';
+$amount = (float)($input['amount'] ?? 0);
+$orderRef = $input['orderRef'] ?? ('POS-' . time());
+
+if (empty($phone) || $amount <= 0) {
+    stkJson(['error' => 'Phone number and amount are required'], 400);
+}
+
+// Get M-Pesa settings from database
+function getSetting($key) {
+    $row = Database::selectOne("SELECT value FROM settings WHERE `key` = ?", [$key]);
+    return $row ? $row['value'] : '';
+}
+
+$env = getSetting('mpesa_env') ?: 'sandbox';
+$shortcode = getSetting('mpesa_shortcode') ?: '174379';
+$passkey = getSetting('mpesa_passkey') ?: '';
+$consumerKey = getSetting('mpesa_consumer_key') ?: '';
+$consumerSecret = getSetting('mpesa_consumer_secret') ?: '';
+$callbackUrl = getSetting('mpesa_callback_url') ?: (rtrim(getSetting('site_url') ?: 'http://localhost', '/') . '/api/mpesa/callback');
+
+if (empty($consumerKey) || empty($consumerSecret) || empty($passkey)) {
+    stkJson(['error' => 'M-Pesa is not configured. Please set up M-Pesa credentials in Payment Settings.'], 400);
+}
+
+// Normalize phone number (254...)
+$phone = preg_replace('/[^0-9]/', '', $phone);
+if (str_starts_with($phone, '0')) {
+    $phone = '254' . substr($phone, 1);
+} elseif (str_starts_with($phone, '+')) {
+    $phone = substr($phone, 1);
+}
+if (!str_starts_with($phone, '254') || strlen($phone) !== 12) {
+    stkJson(['error' => 'Invalid phone number. Use format 254XXXXXXXXX'], 400);
+}
+
+$baseUrl = $env === 'production'
+    ? 'https://api.safaricom.co.ke'
+    : 'https://sandbox.safaricom.co.ke';
+
+try {
+    // Step 1: Get OAuth token
+    $credentials = base64_encode($consumerKey . ':' . $consumerSecret);
+    $ch = curl_init($baseUrl . '/oauth/v1/generate?grant_type=client_credentials');
+    curl_setopt_array($ch, [
+        CURLOPT_HTTPHEADER => ['Authorization: Basic ' . $credentials],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_SSL_VERIFYPEER => false,
+    ]);
+    $tokenResponse = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $tokenData = json_decode($tokenResponse, true);
+    if (!isset($tokenData['access_token'])) {
+        throw new \Exception('Failed to get M-Pesa access token: ' . ($tokenData['error_description'] ?? 'Unknown error'));
+    }
+    $accessToken = $tokenData['access_token'];
+
+    // Step 2: Generate password
+    $timestamp = date('YmdHis');
+    $password = base64_encode($shortcode . $passkey . $timestamp);
+
+    // Step 3: Initiate STK push
+    $stkPayload = [
+        'BusinessShortCode' => $shortcode,
+        'Password' => $password,
+        'Timestamp' => $timestamp,
+        'TransactionType' => 'CustomerPayBillOnline',
+        'Amount' => (int)round($amount),
+        'PartyA' => $phone,
+        'PartyB' => $shortcode,
+        'PhoneNumber' => $phone,
+        'CallBackURL' => $callbackUrl,
+        'AccountReference' => substr($orderRef, 0, 12),
+        'TransactionDesc' => 'POS Payment ' . $orderRef,
+    ];
+
+    $ch = curl_init($baseUrl . '/mpesa/stkpush/v1/processrequest');
+    curl_setopt_array($ch, [
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $accessToken,
+            'Content-Type: application/json',
+        ],
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($stkPayload),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_SSL_VERIFYPEER => false,
+    ]);
+    $stkResponse = curl_exec($ch);
+    $stkHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $stkData = json_decode($stkResponse, true);
+
+    if (isset($stkData['ResponseCode']) && $stkData['ResponseCode'] === '0') {
+        // Store the checkout request ID for polling
+        Session::set('mpesa_stk_' . $stkData['CheckoutRequestID'], [
+            'CheckoutRequestID' => $stkData['CheckoutRequestID'],
+            'MerchantRequestID' => $stkData['MerchantRequestID'],
+            'phone' => $phone,
+            'amount' => $amount,
+            'orderRef' => $orderRef,
+            'created_at' => time(),
+        ]);
+
+        stkJson([
+            'success' => true,
+            'CheckoutRequestID' => $stkData['CheckoutRequestID'],
+            'MerchantRequestID' => $stkData['MerchantRequestID'],
+            'amount' => (int)round($amount),
+            'message' => 'STK push sent to ' . $phone . '. Please wait for the customer to confirm on their phone.',
+        ]);
+    } else {
+        $errorCode = $stkData['errorCode'] ?? 'UNKNOWN';
+        $errorMessage = $stkData['errorMessage'] ?? 'STK push request failed';
+        stkJson([
+            'success' => false,
+            'error' => "M-Pesa error ({$errorCode}): {$errorMessage}",
+        ]);
+    }
+
+} catch (\Throwable $e) {
+    stkJson(['error' => 'STK push failed: ' . $e->getMessage()], 500);
+}

@@ -345,3 +345,24 @@ Stage Summary:
 - Keys are synced to both new and old names + .env for backward compatibility
 - Email spam fix: From email always matches the authenticated SMTP username
 - Pushed as commit 81b8a21
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix IntaSend authentication error, Pesapal OAuth token error, update admin payment settings, fix SMTP spam rejection
+
+Work Log:
+- Read IntaSendAPI.php - found getCredentials() only returned publishable_key and test mode, missing secret key (token) needed by SDK init()
+- Read PesapalAPI.php - found getAuthToken() had no logging for debugging "No token in response" error
+- Rewrote IntaSendAPI.php: added token (secret key) to credentials array, added proper sandbox URL, added testConnection() method, added file logging
+- Rewrote PesapalAPI.php: added detailed logging for all API calls, better error extraction from responses, JSON decode failure handling, file logging
+- Updated admin/settings.php: IntaSend secret key now marked required, added Test Connection button for IntaSend, Pesapal labels improved with required markers, environment-matching warnings added
+- Added intasendTestConnection() to AdminSettingsController.php
+- Added POST /admin/settings/intasend-test route
+- Fixed Mailer.php: added enrichEmailBody() to wrap simple HTML in proper email template (store branding, footer, contact info) to bypass spam filters, added anti-spam headers (X-Priority, X-MS-Priority, X-Mailer-MIME)
+- Pushed to GitHub (commit 61cbfd2)
+
+Stage Summary:
+- IntaSend "Session expired" fix: SDK init() now receives both publishable_key AND token (secret key)
+- Pesapal "No token in response" fix: Added logging to capture raw response for diagnosis; improved error messages
+- SMTP 550 spam fix: All emails now enriched with proper HTML wrapper, store branding, footer; anti-spam headers added
+- Admin settings: Both gateways have Test Connection buttons, required field markers, environment-matching warnings

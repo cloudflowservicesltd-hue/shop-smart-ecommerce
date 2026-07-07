@@ -1,0 +1,31 @@
+<?php
+ob_start();
+
+require_once __DIR__ . '/../../app/bootstrap.php';
+
+function sendJson($data, $code = 200) {
+    if (ob_get_level()) ob_end_clean();
+    http_response_code($code);
+    header('Content-Type: application/json');
+    echo json_encode($data);
+    exit;
+}
+
+if (!Auth::check() || !Auth::hasRole(['admin', 'super_admin', 'cashier'])) {
+    sendJson(['error' => 'Access denied'], 403);
+}
+
+$category = $_GET['category'] ?? '';
+
+if ($category !== '') {
+    $products = Database::select(
+        "SELECT p.*, (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = 1) as image FROM products p WHERE p.is_active = 1 AND p.stock_quantity > 0 AND p.category_id = ? ORDER BY p.name",
+        [(int)$category]
+    );
+} else {
+    $products = Database::select(
+        "SELECT p.*, (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = 1) as image FROM products p WHERE p.is_active = 1 AND p.stock_quantity > 0 ORDER BY p.name"
+    );
+}
+
+sendJson($products);

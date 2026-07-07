@@ -1,0 +1,154 @@
+<?php
+ob_start(); // Capture ALL output to prevent HTML corruption of JSON
+
+require_once __DIR__ . '/../../app/bootstrap.php';
+
+// Self-heal: ensure required tables/columns exist
+try {
+    Database::getConnection()->exec("ALTER TABLE `orders` ADD COLUMN `cashier_id` INT UNSIGNED DEFAULT NULL AFTER `is_pos`");
+} catch (\Throwable $e) {}
+try {
+    Database::getConnection()->exec("CREATE TABLE IF NOT EXISTS `commissions` (
+        `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        `user_id` INT UNSIGNED NOT NULL,
+        `order_id` INT UNSIGNED DEFAULT NULL,
+        `order_number` VARCHAR(100) NOT NULL DEFAULT '',
+        `amount` DOUBLE NOT NULL DEFAULT 0,
+        `percentage` DOUBLE NOT NULL DEFAULT 0,
+        `order_total` DOUBLE NOT NULL DEFAULT 0,
+        `status` ENUM('pending','paid') NOT NULL DEFAULT 'pending',
+        `paid_at` DATETIME DEFAULT NULL,
+        `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+} catch (\Throwable $e) {}
+
+function sendJson($data, $code = 200) {
+    // Discard ALL output buffers (PHP warnings, debug banners, stray whitespace, etc.)
+    while (ob_get_level()) ob_end_clean();
+    if (!headers_sent()) {
+        http_response_code($code);
+        header('Content-Type: application/json');
+    }
+    echo json_encode($data);
+    exit;
+}
+
+if (!Auth::check() || !Auth::hasRole(['admin', 'super_admin', 'cashier'])) {
+    sendJson(['success' => false, 'error' => 'Access denied'], 403);
+}
+
+// Accept both FormData and JSON
+$contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+if (str_contains($contentType, 'application/json')) {
+    $input = json_decode(file_get_contents('php://input'), true) ?? [];
+} else {
+    $input = $_POST;
+}
+
+$cartRaw = $input['cart'] ?? '[]';
+$cart = is_string($cartRaw) ? json_decode($cartRaw, true) : $cartRaw;
+if (!is_array($cart)) $cart = [];
+$method = $input['method'] ?? 'cash';
+$subtotal = (float)($input['subtotal'] ?? 0);
+$tax = (float)($input['tax'] ?? 0);
+$total = (float)($input['total'] ?? 0);
+$orderNum = $input['orderNum'] ?? ('POS-' . date('YmdHis'));
+$amountReceived = (float)($input['amount_received'] ?? 0);
+$changeAmount = (float)($input['change_amount'] ?? 0);
+$transactionCode = $input['transaction_code'] ?? '';
+$stkCheckoutId = $input['stk_checkout_id'] ?? ''; // M-Pesa STK CheckoutRequestID
+
+if (empty($cart)) {
+    sendJson(['success' => false, 'error' => 'Cart is empty'], 400);
+}
+
+$user = Auth::user();
+$userId = $user['id'] ?? 0;
+$now = date('Y-m-d H:i:s');
+
+try {
+    Database::getConnection()->beginTransaction();
+
+    // Create order
+    $orderId = Database::insert('orders', [
+        'order_number' => $orderNum,
+        'customer_id' => null,
+        'customer_name' => 'Walk-in Customer',
+        'subtotal' => $subtotal,
+        'tax' => $tax,
+        'discount' => 0,
+        'shipping_cost' => 0,
+        'total' => $total,
+        'payment_method' => $method,
+        'payment_status' => 'paid',
+        'payment_reference' => $transactionCode ?: $stkCheckoutId ?: null,
+        'status' => 'completed',
+        'is_pos' => 1,
+        'cashier_id' => $userId,
+        'amount_received' => $amountReceived,
+        'change_amount' => $changeAmount,
+        'notes' => '',
+        'created_at' => $now,
+        'updated_at' => $now,
+    ]);
+
+    // Create order items and update stock
+    foreach ($cart as $item) {
+        $productId = (int)($item['id'] ?? 0);
+        $qty = (int)($item['qty'] ?? 1);
+        $price = (float)($item['price'] ?? 0);
+        $lineTotal = $price * $qty;
+
+        Database::insert('order_items', [
+            'order_id' => $orderId,
+            'product_id' => $productId,
+            'product_name' => $item['name'] ?? '',
+            'quantity' => $qty,
+            'price' => $price,
+            'total' => $lineTotal,
+            'created_at' => $now,
+        ]);
+
+        // Reduce stock
+        Database::query("UPDATE `products` SET stock_quantity = stock_quantity - ? WHERE id = ? AND stock_quantity >= ?", [
+            $qty, $productId, $qty
+        ]);
+    }
+
+    // Calculate commission for cashier
+    try {
+        $commRow = Database::selectOne("SELECT value FROM settings WHERE `key` = 'commission_enabled'");
+        $commEnabled = $commRow ? ($commRow['value'] ?? '0') : '0';
+        $pctRow = Database::selectOne("SELECT value FROM settings WHERE `key` = 'commission_percentage'");
+        $commPercentage = $pctRow ? (float)($pctRow['value'] ?? 0) : 0;
+        if ($commEnabled === '1' && $commPercentage > 0 && $userId) {
+            $commAmount = round($total * ($commPercentage / 100), 2);
+            Database::insert('commissions', [
+                'user_id' => $userId,
+                'order_id' => $orderId,
+                'order_number' => $orderNum,
+                'amount' => $commAmount,
+                'percentage' => $commPercentage,
+                'order_total' => $total,
+                'status' => 'pending',
+                'created_at' => $now,
+            ]);
+        }
+    } catch (\Throwable $e) {
+        // Commission failure should not block the sale
+    }
+
+    // Clear POS cart from session
+    Session::set('pos_cart', []);
+
+    Database::getConnection()->commit();
+    sendJson(['success' => true, 'order_id' => $orderId, 'order_number' => $orderNum]);
+
+} catch (\Throwable $e) {
+    try {
+        if (Database::getConnection()->inTransaction()) {
+            Database::getConnection()->rollBack();
+        }
+    } catch (\Throwable $re) {}
+    sendJson(['success' => false, 'error' => 'Checkout failed: ' . $e->getMessage()], 500);
+}

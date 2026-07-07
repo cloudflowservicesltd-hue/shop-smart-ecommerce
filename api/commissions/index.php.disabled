@@ -1,0 +1,95 @@
+<?php
+ini_set('display_errors', '0');
+header('Content-Type: application/json');
+
+// Self-heal: ensure commissions table exists
+try {
+    if (class_exists('Database')) {
+        Database::getConnection()->exec("CREATE TABLE IF NOT EXISTS `commissions` (
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `user_id` INT UNSIGNED NOT NULL,
+            `order_id` INT UNSIGNED DEFAULT NULL,
+            `order_number` VARCHAR(100) NOT NULL DEFAULT '',
+            `amount` DOUBLE NOT NULL DEFAULT 0,
+            `percentage` DOUBLE NOT NULL DEFAULT 0,
+            `order_total` DOUBLE NOT NULL DEFAULT 0,
+            `status` ENUM('pending','paid') NOT NULL DEFAULT 'pending',
+            `paid_at` DATETIME DEFAULT NULL,
+            `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    }
+} catch (\Throwable $e) {}
+
+try {
+    if (!defined('ROOT_PATH')) {
+        require_once dirname(dirname(__DIR__)) . '/app/bootstrap.php';
+    }
+
+    if (!Auth::check()) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Not logged in']);
+        exit;
+    }
+
+    $userId = Auth::id();
+    $isAdmin = Auth::isAdmin();
+    $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    $uri = str_replace('/api/commissions', '', $uri);
+    $method = $_SERVER['REQUEST_METHOD'];
+
+    // GET /api/commissions/balance — Get commission summary
+    if ($uri === '/balance' && $method === 'GET') {
+        $where = $isAdmin ? '1=1' : 'user_id = ?';
+        $params = $isAdmin ? [] : [$userId];
+
+        $pending = (float)(Database::selectOne("SELECT COALESCE(SUM(amount), 0) as total FROM commissions WHERE status = 'pending' AND $where", $params)['total'] ?? 0);
+        $paid = (float)(Database::selectOne("SELECT COALESCE(SUM(amount), 0) as total FROM commissions WHERE status = 'paid' AND $where", $params)['total'] ?? 0);
+
+        echo json_encode([
+            'success' => true,
+            'pending' => round($pending, 2),
+            'paid' => round($paid, 2),
+            'earned' => round($pending + $paid, 2),
+        ]);
+        exit;
+    }
+
+    // GET /api/commissions/history — List commission records
+    if ($uri === '/history' && $method === 'GET') {
+        $where = $isAdmin ? '1=1' : 'c.user_id = ?';
+        $params = $isAdmin ? [] : [$userId];
+
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $limit = 20;
+        $offset = ($page - 1) * $limit;
+
+        $total = (int)(Database::selectOne("SELECT COUNT(*) as cnt FROM commissions c WHERE $where", $params)['cnt'] ?? 0);
+        $records = Database::select("SELECT c.*, u.name as cashier_name FROM commissions c LEFT JOIN users u ON c.user_id = u.id WHERE $where ORDER BY c.created_at DESC LIMIT $limit OFFSET $offset", $params);
+
+        echo json_encode([
+            'success' => true,
+            'commissions' => $records,
+            'total' => $total,
+            'page' => $page,
+            'pages' => max(1, ceil($total / $limit)),
+        ]);
+        exit;
+    }
+
+    // POST /api/commissions/pay/{id} — Mark commission as paid (admin only)
+    if (preg_match('#^/pay/(\d+)$#', $uri, $m) && $method === 'POST' && $isAdmin) {
+        Database::update('commissions', [
+            'status' => 'paid',
+            'paid_at' => date('Y-m-d H:i:s'),
+        ], 'id = ?', [(int)$m[1]]);
+        echo json_encode(['success' => true, 'message' => 'Commission marked as paid']);
+        exit;
+    }
+
+    http_response_code(404);
+    echo json_encode(['error' => 'Not found']);
+
+} catch (\Throwable $e) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+}

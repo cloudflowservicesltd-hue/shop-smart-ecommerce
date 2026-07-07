@@ -1,0 +1,124 @@
+<?php
+ob_start();
+
+ini_set('display_errors', '0');
+
+function sendJson($data, $code = 200) {
+    if (ob_get_level()) ob_end_clean();
+    http_response_code($code);
+    header('Content-Type: application/json');
+    echo json_encode($data);
+    exit;
+}
+
+// Log every request for debugging
+@file_put_contents(dirname(dirname(__DIR__)) . '/storage/logs/pos-holds.log',
+    date('Y-m-d H:i:s') . " | " . $_SERVER['REQUEST_METHOD'] . " " . ($_SERVER['REQUEST_URI'] ?? '') . "\n",
+    FILE_APPEND);
+
+// Self-heal: ensure pos_holds table exists
+try {
+    if (class_exists('Database')) {
+        Database::getConnection()->exec("CREATE TABLE IF NOT EXISTS `pos_holds` (
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `user_id` INT UNSIGNED DEFAULT NULL,
+            `cashier_name` VARCHAR(255) NOT NULL DEFAULT '',
+            `cart_data` LONGTEXT NOT NULL,
+            `items_count` INT UNSIGNED NOT NULL DEFAULT 0,
+            `subtotal` DOUBLE NOT NULL DEFAULT 0,
+            `tax` DOUBLE NOT NULL DEFAULT 0,
+            `total` DOUBLE NOT NULL DEFAULT 0,
+            `customer_name` VARCHAR(255) NOT NULL DEFAULT '',
+            `notes` TEXT DEFAULT NULL,
+            `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    }
+} catch (\Throwable $e) {}
+
+try {
+    if (!defined('ROOT_PATH')) {
+        require_once dirname(dirname(__DIR__)) . '/app/bootstrap.php';
+    }
+
+    if (!Auth::check() || !Auth::hasRole(['admin', 'super_admin', 'cashier'])) {
+        sendJson(['error' => 'Forbidden'], 403);
+    }
+
+    $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    $uri = str_replace('/api/pos', '', $uri);
+    $method = $_SERVER['REQUEST_METHOD'];
+
+    // GET /api/pos/holds — List all held sales
+    if ($uri === '/holds' && $method === 'GET') {
+        $userId = Auth::id();
+        $holds = Database::select("SELECT id, user_id, cashier_name, items_count, total, customer_name, notes, created_at FROM pos_holds WHERE user_id = ? ORDER BY created_at DESC", [$userId]);
+        sendJson(['success' => true, 'holds' => $holds]);
+    }
+
+    // POST /api/pos/holds — Create a new hold
+    if ($uri === '/holds' && $method === 'POST') {
+        // Accept both FormData and JSON
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (str_contains($contentType, 'application/json')) {
+            $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        } else {
+            $input = $_POST;
+        }
+        $cartRaw = $input['cart'] ?? '[]';
+        $cart = is_string($cartRaw) ? json_decode($cartRaw, true) : $cartRaw;
+        if (!is_array($cart)) $cart = [];
+        $notes = trim($input['notes'] ?? '');
+        $customerName = trim($input['customer_name'] ?? '');
+
+        if (empty($cart)) {
+            sendJson(['error' => 'Cannot hold an empty cart'], 400);
+        }
+
+        $taxRate = (float)(Database::selectOne("SELECT value FROM settings WHERE `key` = 'tax_rate'")['value'] ?? 16);
+        $subtotal = array_sum(array_map(fn($i) => ($i['price'] ?? 0) * ($i['qty'] ?? 1), $cart));
+        $tax = $subtotal * ($taxRate / 100);
+        $total = $subtotal + $tax;
+
+        Database::insert('pos_holds', [
+            'user_id' => Auth::id(),
+            'cashier_name' => Auth::user()['name'] ?? 'Cashier',
+            'cart_data' => json_encode($cart),
+            'items_count' => count($cart),
+            'subtotal' => $subtotal,
+            'tax' => $tax,
+            'total' => $total,
+            'customer_name' => $customerName,
+            'notes' => $notes,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        sendJson(['success' => true, 'message' => 'Sale held successfully']);
+    }
+
+    // POST /api/pos/holds/restore/{id} — Restore a held sale to cart
+    if (preg_match('#^/holds/restore/(\d+)$#', $uri, $m) && $method === 'POST') {
+        $userId = Auth::id();
+        $hold = Database::selectOne("SELECT * FROM pos_holds WHERE id = ? AND user_id = ?", [(int)$m[1], $userId]);
+        if (!$hold) {
+            sendJson(['error' => 'Hold not found'], 404);
+        }
+        $cart = json_decode($hold['cart_data'], true) ?: [];
+        Session::set('pos_cart', $cart);
+        Database::delete('pos_holds', 'id = ?', [(int)$m[1]]);
+        sendJson(['success' => true, 'cart' => $cart, 'message' => 'Sale restored to cart']);
+    }
+
+    // DELETE /api/pos/holds/{id} — Delete a held sale
+    if (preg_match('#^/holds/(\d+)$#', $uri, $m) && $method === 'DELETE') {
+        Database::delete('pos_holds', 'id = ?', [(int)$m[1]]);
+        sendJson(['success' => true, 'message' => 'Hold deleted']);
+    }
+
+    sendJson(['error' => 'Not found'], 404);
+
+} catch (\Throwable $e) {
+    @file_put_contents(dirname(dirname(__DIR__)) . '/storage/logs/pos-holds.log',
+        date('Y-m-d H:i:s') . " | ERROR: " . $e->getMessage() . " | " . $e->getFile() . ":" . $e->getLine() . "\n",
+        FILE_APPEND);
+    sendJson(['success' => false, 'error' => $e->getMessage()], 500);
+}
