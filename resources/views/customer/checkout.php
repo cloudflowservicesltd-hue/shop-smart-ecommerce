@@ -1,5 +1,5 @@
 <?php if (empty($cartItems ?? [])): ?>
-<div class="w-full px-4 sm:px-6 xl:px-0 py-20 text-center">
+<div class="w-full px-4 sm:px-6 xl:px-4 py-20 text-center">
     <div class="w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-3xl flex items-center justify-center">
         <i data-lucide="shopping-cart" class="w-12 h-12 text-gray-300"></i>
     </div>
@@ -73,7 +73,7 @@ $colorMap = [
 ?>
 <!-- Breadcrumbs -->
 <div class="bg-gray-50 border-b border-gray-100">
-    <div class="w-full px-4 sm:px-6 xl:px-0 py-3">
+    <div class="w-full px-4 sm:px-6 xl:px-4 py-3">
         <nav class="flex items-center gap-2 text-sm text-gray-500">
             <a href="/" class="hover:text-amber-600 transition-colors">Home</a>
             <i data-lucide="chevron-right" class="w-4 h-4"></i>
