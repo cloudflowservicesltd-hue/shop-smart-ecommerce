@@ -21,16 +21,16 @@ $s = [
     'stripe_secret'        => $getSetting('stripe_secret'),
     'stripe_webhook_secret'=> $getSetting('stripe_webhook_secret'),
     // IntaSend
-    'intasend_enabled'     => $getSetting('intasend_enabled', '0'),
-    'intasend_key'         => $getSetting('intasend_key'),
-    'intasend_secret'      => $getSetting('intasend_secret'),
-    'intasend_publishable' => $getSetting('intasend_publishable'),
+    'intasend_enabled'        => $getSetting('intasend_enabled', '0'),
+    'intasend_publishable_key' => $getSetting('intasend_publishable_key'),
+    'intasend_secret'         => $getSetting('intasend_secret'),
+    'intasend_test_mode'      => $getSetting('intasend_test_mode', '1'),
     // PesaPal
-    'pesapal_enabled'      => $getSetting('pesapal_enabled', '0'),
-    'pesapal_env'          => $getSetting('pesapal_env', 'sandbox'),
-    'pesapal_key'          => $getSetting('pesapal_key'),
-    'pesapal_secret'       => $getSetting('pesapal_secret'),
-    'pesapal_ipn_id'       => $getSetting('pesapal_ipn_id'),
+    'pesapal_enabled'         => $getSetting('pesapal_enabled', '0'),
+    'pesapal_consumer_key'    => $getSetting('pesapal_consumer_key'),
+    'pesapal_consumer_secret' => $getSetting('pesapal_consumer_secret'),
+    'pesapal_test_mode'       => $getSetting('pesapal_test_mode', '1'),
+    'pesapal_ipn_id'          => $getSetting('pesapal_ipn_id'),
     // PayPal
     'paypal_enabled'       => $getSetting('paypal_enabled', '0'),
     'paypal_env'           => $getSetting('paypal_env', 'sandbox'),
@@ -198,7 +198,7 @@ $maskedVal = function($v) { return $v ? '••••••••••••' :
                 </div>
                 <div>
                     <h3 class="font-medium text-gray-900">IntaSend</h3>
-                    <p class="text-xs text-gray-500">Kenya mobile money & card payments</p>
+                    <p class="text-xs text-gray-500">M-Pesa, card & bank transfers</p>
                 </div>
             </div>
             <form method="POST" action="/admin/payments/settings/toggle" class="flex items-center gap-2">
@@ -214,19 +214,30 @@ $maskedVal = function($v) { return $v ? '••••••••••••' :
             <form method="POST" action="/admin/payments/settings/intasend" class="p-6 pt-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <?= csrf() ?>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">API Key (Username)</label>
-                    <input type="text" name="intasend_key" value="<?= $val($s['intasend_key']) ?>" class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="IntaSend API key">
-                    <p class="text-xs text-gray-400 mt-1">Used as the username for Basic Auth</p>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Publishable Key</label>
+                    <input type="text" name="intasend_publishable_key" value="<?= $val($s['intasend_publishable_key']) ?>" class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono" placeholder="ISPubKey_xxxxxxxxxxxx">
+                    <p class="text-xs text-gray-400 mt-1">From <a href="https://app.intasend.com" target="_blank" class="text-blue-600 hover:underline">app.intasend.com</a> → Settings → API Keys</p>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">API Secret (Password)</label>
-                    <input type="password" name="intasend_secret" value="<?= $val($s['intasend_secret']) ?>" class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter API secret">
-                    <p class="text-xs text-gray-400 mt-1">Used as the password for Basic Auth</p>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Secret Key</label>
+                    <div class="flex gap-2">
+                        <input type="password" name="intasend_secret" value="<?= $val($s['intasend_secret']) ?>" class="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono" placeholder="Enter secret key">
+                        <button type="button" onclick="const i=this.previousElementSibling;i.type=i.type==='password'?'text':'password'" class="px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-500 hover:bg-gray-50"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">Required for server-side verification</p>
                 </div>
-                <div class="sm:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Publishable Key</label>
-                    <input type="text" name="intasend_publishable" value="<?= $val($s['intasend_publishable']) ?>" class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="ISPubk_live_...">
-                    <p class="text-xs text-gray-400 mt-1">For client-side IntaSend checkout (optional)</p>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Test Mode</label>
+                    <label class="relative inline-flex items-center cursor-pointer mt-1">
+                        <input type="checkbox" name="intasend_test_mode" value="1" class="sr-only peer" <?= $s['intasend_test_mode'] === '1' ? 'checked' : '' ?>>
+                        <div class="w-11 h-6 bg-gray-300 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                        <span class="ml-3 text-sm text-gray-600">Sandbox (uncheck for live)</span>
+                    </label>
+                </div>
+                <div class="flex items-end">
+                    <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 w-full">
+                        <p class="text-xs text-blue-700"><i data-lucide="info" class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5"></i> <strong>Setup:</strong> 1) Create account at <a href="https://intasend.com" target="_blank" class="underline">intasend.com</a>. 2) Get API keys. 3) Set callback URL to <code class="bg-blue-100 px-1 py-0.5 rounded text-[11px]">/payment/intasend/callback</code>.</p>
+                    </div>
                 </div>
                 <div class="sm:col-span-2 flex justify-end pt-2">
                     <button type="submit" class="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2">
@@ -246,7 +257,7 @@ $maskedVal = function($v) { return $v ? '••••••••••••' :
                 </div>
                 <div>
                     <h3 class="font-medium text-gray-900">PesaPal</h3>
-                    <p class="text-xs text-gray-500">Mobile money, cards & bank transfers</p>
+                    <p class="text-xs text-gray-500">M-Pesa, Airtel Money, Visa, Mastercard & more</p>
                 </div>
             </div>
             <form method="POST" action="/admin/payments/settings/toggle" class="flex items-center gap-2">
@@ -262,26 +273,34 @@ $maskedVal = function($v) { return $v ? '••••••••••••' :
             <form method="POST" action="/admin/payments/settings/pesapal" class="p-6 pt-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <?= csrf() ?>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Environment</label>
-                    <select name="pesapal_env" class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent">
-                        <option value="sandbox" <?= $envSelected($s['pesapal_env'], 'sandbox') ?>>Sandbox (Testing)</option>
-                        <option value="production" <?= $envSelected($s['pesapal_env'], 'production') ?>>Production (Live)</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">IPN Notification ID</label>
-                    <input type="text" name="pesapal_ipn_id" value="<?= $val($s['pesapal_ipn_id']) ?>" class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" placeholder="PesaPal IPN ID">
-                    <p class="text-xs text-gray-400 mt-1">Register your callback URL in PesaPal dashboard to get this</p>
-                </div>
-                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Consumer Key</label>
-                    <input type="text" name="pesapal_key" value="<?= $val($s['pesapal_key']) ?>" class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" placeholder="PesaPal consumer key">
-                    <p class="text-xs text-gray-400 mt-1">From PesaPal Developer Portal</p>
+                    <input type="text" name="pesapal_consumer_key" value="<?= $val($s['pesapal_consumer_key']) ?>" class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono" placeholder="Enter Pesapal consumer key">
+                    <p class="text-xs text-gray-400 mt-1">From <a href="https://developer.pesapal.com" target="_blank" class="text-orange-600 hover:underline">Pesapal Developer Portal</a></p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Consumer Secret</label>
-                    <input type="password" name="pesapal_secret" value="<?= $val($s['pesapal_secret']) ?>" class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" placeholder="Enter consumer secret">
-                    <p class="text-xs text-gray-400 mt-1">From PesaPal Developer Portal</p>
+                    <div class="flex gap-2">
+                        <input type="password" name="pesapal_consumer_secret" value="<?= $val($s['pesapal_consumer_secret']) ?>" class="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono" placeholder="Enter consumer secret">
+                        <button type="button" onclick="const i=this.previousElementSibling;i.type=i.type==='password'?'text':'password'" class="px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-500 hover:bg-gray-50"><i data-lucide="eye" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Test Mode</label>
+                    <label class="relative inline-flex items-center cursor-pointer mt-1">
+                        <input type="checkbox" name="pesapal_test_mode" value="1" class="sr-only peer" <?= $s['pesapal_test_mode'] === '1' ? 'checked' : '' ?>>
+                        <div class="w-11 h-6 bg-gray-300 peer-focus:ring-2 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                        <span class="ml-3 text-sm text-gray-600">Sandbox (uncheck for live)</span>
+                    </label>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">IPN Notification ID</label>
+                    <input type="text" name="pesapal_ipn_id" value="<?= $val($s['pesapal_ipn_id']) ?>" class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono" placeholder="Auto-registered or from Pesapal dashboard">
+                    <p class="text-xs text-gray-400 mt-1">Registered automatically on first checkout, or set manually</p>
+                </div>
+                <div class="sm:col-span-2">
+                    <div class="bg-orange-50 border border-orange-100 rounded-lg p-3">
+                        <p class="text-xs text-orange-800"><i data-lucide="info" class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5"></i> <strong>Setup:</strong> 1) Create account at <a href="https://www.pesapal.com" target="_blank" class="underline">pesapal.com</a>. 2) Get credentials from Developer Portal. 3) Callback URL: <code class="bg-orange-100 px-1 py-0.5 rounded text-[11px]">/payment/pesapal/callback</code>. 4) IPN URL: <code class="bg-orange-100 px-1 py-0.5 rounded text-[11px]">/payment/pesapal/ipn</code></p>
+                    </div>
                 </div>
                 <div class="sm:col-span-2 flex justify-end pt-2">
                     <button type="submit" class="bg-orange-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors flex items-center gap-2">

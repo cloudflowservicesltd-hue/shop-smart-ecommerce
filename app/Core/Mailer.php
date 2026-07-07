@@ -110,12 +110,18 @@ class Mailer
         $fromEmail = $config['from_email'] ?: 'noreply@' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
         $fromName  = $config['from_name'] ?: 'ShopSmart';
 
+        // Force From email to match SMTP username to avoid spam rejection on hosting
+        $smtpUser = $config['username'] ?? '';
+        if (!empty($smtpUser) && filter_var($smtpUser, FILTER_VALIDATE_EMAIL)) {
+            $fromEmail = $smtpUser;
+        }
+
         // Build headers
         $headers = [];
         $headers[] = "From: $fromName <$fromEmail>";
         $headers[] = "MIME-Version: 1.0";
         $headers[] = "Content-Type: " . ($isHtml ? 'text/html; charset=UTF-8' : 'text/plain; charset=UTF-8');
-        $headers[] = "X-Mailer: ShopSmart/PHP";
+        $headers[] = "X-Mailer: ShopSmart E-Commerce";
 
         if ($replyTo) {
             $headers[] = "Reply-To: $replyTo";
@@ -434,7 +440,7 @@ class Mailer
                     if ($isGmail) {
                         $result['error'] = 'Gmail rejected the email as spam. The From address is now forced to match your Gmail. If it persists, use an App Password. Error: ' . $errInfo;
                     } else {
-                        $result['error'] = 'Your SMTP server classified the email as spam. Make sure the "From Email" matches an email account on your hosting (e.g., your cPanel email). Also try adding more content to the email body. Error: ' . $errInfo;
+                        $result['error'] = 'Your SMTP server classified the email as spam. The From email has been auto-fixed to match your SMTP username. If this persists, create a proper email account (e.g. noreply@cloudonehost.top) in cPanel and use it as both SMTP username and From email. Error: ' . $errInfo;
                     }
                 } elseif (strpos($errLower, 'authentication') !== false || strpos($errLower, 'auth') !== false) {
                     if ($isGmail) {
@@ -584,6 +590,10 @@ class Mailer
         $mail->Timeout     = 15;  // 15 seconds — don't hang too long
         $mail->CharSet     = 'UTF-8';
 
+        // Anti-spam: set proper X-Mailer and Message-ID
+        $mail->XMailer  = 'ShopSmart E-Commerce';
+        $mail->MessageID = '<' . md5(uniqid(microtime(true), true)) . '@' . ($_SERVER['HTTP_HOST'] ?? 'shopsmart.co.ke') . '>';
+
         // Disable SSL peer verification (shared hosting friendly)
         $mail->SMTPOptions = [
             'ssl' => [
@@ -593,17 +603,15 @@ class Mailer
             ],
         ];
 
-        // Set From address — for Gmail, this MUST match the SMTP username
+        // Set From address — MUST match the SMTP authenticated username to avoid spam rejection
         $fromEmail = $config['from_email'] ?: '';
         $fromName  = $config['from_name'] ?: 'ShopSmart';
 
-        // Auto-fix: if using Gmail and From doesn't match username, use username instead
         $smtpUser = $config['username'] ?? '';
-        if (!empty($smtpUser) && !empty($fromEmail) && $fromEmail !== $smtpUser) {
-            $smtpDomain = strtolower(substr(strrchr($smtpUser, '@'), 1));
-            if (in_array($smtpDomain, ['gmail.com', 'googlemail.com'])) {
-                $fromEmail = $smtpUser; // Force From = Gmail address
-            }
+
+        // Force From email to match SMTP username — hosting servers reject otherwise (spam)
+        if (!empty($smtpUser) && filter_var($smtpUser, FILTER_VALIDATE_EMAIL)) {
+            $fromEmail = $smtpUser;
         }
         // Fallback: if no from_email set, use SMTP username
         if (empty($fromEmail) && !empty($smtpUser)) {

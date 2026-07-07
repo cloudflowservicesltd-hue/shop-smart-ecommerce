@@ -60,18 +60,63 @@ class AdminPaymentSettingsController extends BaseController
 
     public function saveIntasend(): void
     {
-        $fields = ['intasend_key', 'intasend_secret', 'intasend_publishable'];
-        foreach ($fields as $f) { $this->saveSetting($f, Request::post($f, '')); }
+        $publishableKey = Request::post('intasend_publishable_key', '');
+        $secret = Request::post('intasend_secret', '');
+        $testMode = Request::post('intasend_test_mode', '0') === '1' ? '1' : '0';
+
+        // Save new keys
+        $this->saveSetting('intasend_publishable_key', $publishableKey);
+        $this->saveSetting('intasend_secret', $secret);
+        $this->saveSetting('intasend_test_mode', $testMode);
+
+        // Sync to old keys for backward compatibility
+        $this->saveSetting('intasend_publishable', $publishableKey);
+
+        // Sync to .env
+        $this->syncToEnv('INTASEND_PUBLISHABLE_KEY', $publishableKey);
+        $this->syncToEnv('INTASEND_TEST_ENVIRONMENT', $testMode === '1' ? 'true' : 'false');
+
         Session::flash('success', 'IntaSend settings saved');
         Redirect::to('/admin/payments/settings');
     }
 
     public function savePesapal(): void
     {
-        $fields = ['pesapal_env', 'pesapal_key', 'pesapal_secret', 'pesapal_ipn_id'];
-        foreach ($fields as $f) { $this->saveSetting($f, Request::post($f, '')); }
+        $consumerKey = Request::post('pesapal_consumer_key', '');
+        $consumerSecret = Request::post('pesapal_consumer_secret', '');
+        $testMode = Request::post('pesapal_test_mode', '0') === '1' ? '1' : '0';
+        $ipnId = Request::post('pesapal_ipn_id', '');
+
+        // Save new keys
+        $this->saveSetting('pesapal_consumer_key', $consumerKey);
+        $this->saveSetting('pesapal_consumer_secret', $consumerSecret);
+        $this->saveSetting('pesapal_test_mode', $testMode);
+        $this->saveSetting('pesapal_ipn_id', $ipnId);
+
+        // Sync to old keys for backward compatibility
+        $this->saveSetting('pesapal_key', $consumerKey);
+        $this->saveSetting('pesapal_secret', $consumerSecret);
+        $this->saveSetting('pesapal_env', $testMode === '1' ? 'sandbox' : 'production');
+
+        // Sync to .env
+        $this->syncToEnv('PESAPAL_CONSUMER_KEY', $consumerKey);
+        $this->syncToEnv('PESAPAL_CONSUMER_SECRET', $consumerSecret);
+
         Session::flash('success', 'PesaPal settings saved');
         Redirect::to('/admin/payments/settings');
+    }
+
+    private function syncToEnv(string $key, string $value): void
+    {
+        $envPath = ROOT_PATH . '/.env';
+        if (!file_exists($envPath)) return;
+        $content = file_get_contents($envPath);
+        if (preg_match('/^' . preg_quote($key, '/') . '=.*$/m', $content)) {
+            $content = preg_replace('/^' . preg_quote($key, '/') . '=.*$/m', $key . '=' . $value, $content);
+        } else {
+            $content .= "\n" . $key . '=' . $value;
+        }
+        file_put_contents($envPath, $content);
     }
 
     public function savePaypal(): void
