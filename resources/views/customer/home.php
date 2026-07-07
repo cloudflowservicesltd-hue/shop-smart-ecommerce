@@ -132,13 +132,12 @@ $showNewsletter = ($appearance['show_newsletter'] ?? '1') === '1';
         </div>
         <div class="flex gap-5 overflow-x-auto pb-2 scrollbar-hide" style="-ms-overflow-style:none;scrollbar-width:none;">
             <?php foreach ($categories as $index => $cat): ?>
-            <a href="/category/<?= e($cat['slug']) ?>" class="flex flex-col items-center gap-2 shrink-0 group">
-                <div class="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-100 group-hover:border-amber-400 group-hover:shadow-lg group-hover:shadow-amber-100/50 group-hover:scale-110 transition-all duration-300">
+            <a href="/category/<?= e($cat['slug']) ?>" class="shrink-0 group">
+                <div class="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-100 group-hover:border-amber-400 group-hover:shadow-lg group-hover:shadow-amber-100/50 group-hover:scale-110 transition-all duration-300 relative">
                     <img src="<?= $cat['image'] ?? '/uploads/no-image-sm.jpg' ?>" alt="<?= e($cat['name']) ?>" class="w-full h-full object-cover">
-                </div>
-                <div class="text-center">
-                    <p class="text-xs font-semibold text-gray-700 group-hover:text-amber-600 transition-colors"><?= e($cat['name']) ?></p>
-                    <p class="text-[10px] text-gray-400"><?= number_format($cat['product_count'] ?? 0) ?> items</p>
+                    <div class="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <p class="text-[10px] font-bold text-white text-center leading-tight px-1 drop-shadow-md"><?= e($cat['name']) ?></p>
+                    </div>
                 </div>
             </a>
             <?php endforeach; ?>
