@@ -10,6 +10,8 @@ $gradientOptions = [
     'from-teal-500 to-amber-600' => 'Teal → Emerald',
     'from-rose-500 to-pink-600' => 'Rose → Pink',
     'from-violet-500 to-purple-600' => 'Violet → Purple',
+    'from-gray-800 to-gray-900' => 'Dark',
+    'from-emerald-600 to-teal-700' => 'Emerald → Teal',
 ];
 
 $iconOptions = [
@@ -28,7 +30,7 @@ $iconOptions = [
     <div class="flex items-center justify-between">
         <div>
             <h1 class="font-heading font-semibold text-xl text-gray-900">Promo Banners</h1>
-            <p class="text-sm text-gray-500 mt-0.5">Manage homepage promotional banners and hero sections.</p>
+            <p class="text-sm text-gray-500 mt-0.5">Manage homepage promotional banners with optional images.</p>
         </div>
         <button onclick="openFormModal()" class="inline-flex items-center gap-2 bg-amber-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors shadow-sm">
             <i data-lucide="plus" class="w-4 h-4"></i> Add New Banner
@@ -54,28 +56,37 @@ $iconOptions = [
             $gradient = $banner['bg_gradient'] ?? 'from-amber-500 to-orange-600';
             $icon = $banner['icon'] ?? 'zap';
             $isActive = ($banner['is_active'] ?? 0) == 1;
+            $hasImage = !empty($banner['image_url']);
         ?>
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow group">
-            <!-- Gradient Preview -->
-            <div class="bg-gradient-to-r <?= e($gradient) ?> h-36 relative flex items-center px-6">
-                <div class="text-white relative z-10">
-                    <div class="flex items-center gap-2 mb-1.5">
-                        <i data-lucide="<?= e($icon) ?>" class="w-5 h-5 opacity-90"></i>
-                        <?php if ($isActive): ?>
-                        <span class="text-[10px] font-semibold uppercase tracking-wider bg-white/25 backdrop-blur-sm px-2 py-0.5 rounded-full">Active</span>
-                        <?php else: ?>
-                        <span class="text-[10px] font-semibold uppercase tracking-wider bg-black/20 backdrop-blur-sm px-2 py-0.5 rounded-full">Inactive</span>
+            <!-- Banner Preview -->
+            <div class="bg-gradient-to-r <?= e($gradient) ?> h-44 relative overflow-hidden">
+                <?php if ($hasImage): ?>
+                <img src="<?= e($banner['image_url']) ?>" alt="<?= e($banner['title']) ?>" class="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-60">
+                <?php endif; ?>
+                <div class="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-transparent <?= $hasImage ? '' : '' ?>"></div>
+                <div class="relative z-10 h-full flex items-center px-6">
+                    <div class="text-white">
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <?php if (!$hasImage): ?>
+                            <i data-lucide="<?= e($icon) ?>" class="w-5 h-5 opacity-90"></i>
+                            <?php endif; ?>
+                            <?php if ($isActive): ?>
+                            <span class="text-[10px] font-semibold uppercase tracking-wider bg-white/25 backdrop-blur-sm px-2 py-0.5 rounded-full">Active</span>
+                            <?php else: ?>
+                            <span class="text-[10px] font-semibold uppercase tracking-wider bg-black/20 backdrop-blur-sm px-2 py-0.5 rounded-full">Inactive</span>
+                            <?php endif; ?>
+                        </div>
+                        <h3 class="text-lg font-semibold leading-tight drop-shadow-sm"><?= e($banner['title']) ?></h3>
+                        <?php if ($banner['subtitle']): ?>
+                        <p class="text-sm text-white/85 mt-1 max-w-xs truncate"><?= e($banner['subtitle']) ?></p>
+                        <?php endif; ?>
+                        <?php if ($banner['cta_text']): ?>
+                        <span class="inline-block mt-3 text-xs font-semibold bg-white text-gray-900 px-3 py-1 rounded-full shadow-sm"><?= e($banner['cta_text']) ?></span>
                         <?php endif; ?>
                     </div>
-                    <h3 class="text-lg font-semibold leading-tight drop-shadow-sm"><?= e($banner['title']) ?></h3>
-                    <?php if ($banner['subtitle']): ?>
-                    <p class="text-sm text-white/85 mt-1 max-w-xs truncate"><?= e($banner['subtitle']) ?></p>
-                    <?php endif; ?>
-                    <?php if ($banner['cta_text']): ?>
-                    <span class="inline-block mt-3 text-xs font-semibold bg-white text-gray-900 px-3 py-1 rounded-full shadow-sm"><?= e($banner['cta_text']) ?></span>
-                    <?php endif; ?>
                 </div>
-                <div class="absolute right-4 bottom-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div class="absolute right-4 bottom-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                     <button onclick='openEditModal(<?= json_encode($banner, JSON_HEX_APOS | JSON_HEX_QUOT) ?>)' class="p-2 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-lg text-white transition-colors" title="Edit">
                         <i data-lucide="pencil" class="w-4 h-4"></i>
                     </button>
@@ -84,7 +95,12 @@ $iconOptions = [
                     </button>
                 </div>
                 <!-- Position Badge -->
-                <span class="absolute top-3 right-3 bg-black/20 backdrop-blur-sm text-white text-[11px] font-mono font-medium px-2 py-0.5 rounded-md">#<?= (int)$banner['position'] ?></span>
+                <span class="absolute top-3 right-3 bg-black/20 backdrop-blur-sm text-white text-[11px] font-mono font-medium px-2 py-0.5 rounded-md z-20">#<?= (int)$banner['position'] ?></span>
+                <?php if ($hasImage): ?>
+                <span class="absolute top-3 left-3 bg-black/20 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-0.5 rounded-md z-20 flex items-center gap-1">
+                    <i data-lucide="image" class="w-3 h-3"></i> Image
+                </span>
+                <?php endif; ?>
             </div>
             <!-- Card Footer Info -->
             <div class="px-4 py-3 flex items-center justify-between border-t border-gray-50">
@@ -117,18 +133,21 @@ $iconOptions = [
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
-            <form method="POST" id="bannerForm" class="p-6 space-y-5">
+            <form method="POST" id="bannerForm" enctype="multipart/form-data" class="p-6 space-y-5">
                 <input type="hidden" name="id" id="formId">
+                <input type="hidden" name="remove_image" id="formRemoveImage" value="0">
                 <?= csrf() ?>
 
                 <!-- Live Preview -->
                 <div>
                     <label class="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wider">Preview</label>
-                    <div id="livePreview" class="bg-gradient-to-r from-amber-500 to-orange-600 h-32 rounded-xl flex items-center px-5 overflow-hidden">
+                    <div id="livePreview" class="bg-gradient-to-r from-amber-500 to-orange-600 h-40 rounded-xl flex items-center px-5 overflow-hidden relative">
+                        <img id="previewImage" src="" alt="" class="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-60 hidden">
+                        <div class="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-transparent"></div>
                         <div class="text-white relative z-10">
                             <div class="flex items-center gap-2 mb-1">
                                 <i data-lucide="zap" class="w-4 h-4 opacity-90" id="previewIcon"></i>
-                                <span class="text-[10px] font-semibold uppercase tracking-wider bg-white/25 px-2 py-0.5 rounded-full">Active</span>
+                                <span class="text-[10px] font-semibold uppercase tracking-wider bg-white/25 px-2 py-0.5 rounded-full" id="previewStatus">Active</span>
                             </div>
                             <h4 id="previewTitle" class="text-base font-semibold leading-tight drop-shadow-sm">Banner Title</h4>
                             <p id="previewSubtitle" class="text-sm text-white/85 mt-0.5">Subtitle text here</p>
@@ -138,6 +157,29 @@ $iconOptions = [
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Banner Image -->
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Banner Image</label>
+                        <div class="flex items-start gap-3">
+                            <div class="flex-1">
+                                <input type="file" name="image" id="formImage" accept="image/*" onchange="handleImageSelect(this)" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 file:cursor-pointer cursor-pointer border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+                                <p class="text-xs text-gray-400 mt-1">Optional. JPG, PNG, WebP, GIF up to 5MB.</p>
+                            </div>
+                            <div id="imagePreviewWrap" class="hidden">
+                                <div class="relative w-20 h-14 rounded-lg overflow-hidden border border-gray-200">
+                                    <img id="imagePreviewThumb" src="" alt="Preview" class="w-full h-full object-cover">
+                                    <button type="button" onclick="removeImage()" class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 shadow-sm" title="Remove image">
+                                        <i data-lucide="x" class="w-3 h-3"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="existingImageInfo" class="hidden mt-2 flex items-center gap-2">
+                            <img id="existingImageThumb" src="" alt="" class="w-10 h-7 rounded object-cover border border-gray-200">
+                            <span class="text-xs text-gray-500">Current image</span>
+                        </div>
+                    </div>
+
                     <!-- Title -->
                     <div class="sm:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Title <span class="text-red-500">*</span></label>
@@ -231,6 +273,38 @@ $iconOptions = [
 </div>
 
 <script>
+var _currentEditImageUrl = '';
+
+function handleImageSelect(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('imagePreviewThumb').src = e.target.result;
+        document.getElementById('imagePreviewWrap').classList.remove('hidden');
+        document.getElementById('existingImageInfo').classList.add('hidden');
+        document.getElementById('formRemoveImage').value = '0';
+
+        // Update live preview
+        var previewImg = document.getElementById('previewImage');
+        previewImg.src = e.target.result;
+        previewImg.classList.remove('hidden');
+        updatePreview();
+    };
+    reader.readAsDataURL(file);
+}
+
+function removeImage() {
+    document.getElementById('formImage').value = '';
+    document.getElementById('imagePreviewWrap').classList.add('hidden');
+    document.getElementById('formRemoveImage').value = '1';
+
+    var previewImg = document.getElementById('previewImage');
+    previewImg.src = '';
+    previewImg.classList.add('hidden');
+    updatePreview();
+}
+
 function updatePreview() {
     var preview = document.getElementById('livePreview');
     var title = document.getElementById('formTitle').value || 'Banner Title';
@@ -240,24 +314,25 @@ function updatePreview() {
     var icon = document.getElementById('formIcon').value;
     var isActive = document.getElementById('formIsActive').checked;
 
-    preview.className = 'bg-gradient-to-r ' + gradient + ' h-32 rounded-xl flex items-center px-5 overflow-hidden';
+    preview.className = 'bg-gradient-to-r ' + gradient + ' h-40 rounded-xl flex items-center px-5 overflow-hidden relative';
     document.getElementById('previewTitle').textContent = title;
     document.getElementById('previewSubtitle').textContent = subtitle;
     document.getElementById('previewCta').textContent = ctaText;
     document.getElementById('previewCta').style.display = ctaText.trim() ? 'inline-block' : 'none';
+    document.getElementById('previewStatus').textContent = isActive ? 'Active' : 'Inactive';
 
     var iconEl = document.getElementById('previewIcon');
     iconEl.setAttribute('data-lucide', icon);
-    lucide.createIcons();
 
-    var statusBadge = preview.querySelector('span');
-    if (statusBadge) {
-        statusBadge.textContent = isActive ? 'Active' : 'Inactive';
-        statusBadge.className = 'text-[10px] font-semibold uppercase tracking-wider ' + (isActive ? 'bg-white/25' : 'bg-black/20') + ' px-2 py-0.5 rounded-full';
-    }
+    // Hide icon in preview if image is shown
+    var previewImg = document.getElementById('previewImage');
+    iconEl.style.display = previewImg.classList.contains('hidden') ? '' : 'none';
+
+    lucide.createIcons();
 }
 
 function openFormModal() {
+    _currentEditImageUrl = '';
     document.getElementById('formId').value = '';
     document.getElementById('formTitle').value = '';
     document.getElementById('formSubtitle').value = '';
@@ -267,6 +342,12 @@ function openFormModal() {
     document.getElementById('formIcon').value = 'zap';
     document.getElementById('formPosition').value = '0';
     document.getElementById('formIsActive').checked = true;
+    document.getElementById('formImage').value = '';
+    document.getElementById('formRemoveImage').value = '0';
+    document.getElementById('imagePreviewWrap').classList.add('hidden');
+    document.getElementById('existingImageInfo').classList.add('hidden');
+    document.getElementById('previewImage').classList.add('hidden');
+    document.getElementById('previewImage').src = '';
     document.getElementById('formModalTitle').textContent = 'Add New Banner';
     document.getElementById('formSubmitBtn').textContent = 'Save Banner';
     document.getElementById('bannerForm').action = '/admin/promo-banners/store';
@@ -277,6 +358,7 @@ function openFormModal() {
 }
 
 function openEditModal(banner) {
+    _currentEditImageUrl = banner.image_url || '';
     document.getElementById('formId').value = banner.id;
     document.getElementById('formTitle').value = banner.title || '';
     document.getElementById('formSubtitle').value = banner.subtitle || '';
@@ -286,6 +368,22 @@ function openEditModal(banner) {
     document.getElementById('formIcon').value = banner.icon || 'zap';
     document.getElementById('formPosition').value = banner.position || 0;
     document.getElementById('formIsActive').checked = banner.is_active == 1;
+    document.getElementById('formImage').value = '';
+    document.getElementById('formRemoveImage').value = '0';
+    document.getElementById('imagePreviewWrap').classList.add('hidden');
+
+    // Show existing image info
+    if (banner.image_url) {
+        document.getElementById('existingImageThumb').src = banner.image_url;
+        document.getElementById('existingImageInfo').classList.remove('hidden');
+        document.getElementById('previewImage').src = banner.image_url;
+        document.getElementById('previewImage').classList.remove('hidden');
+    } else {
+        document.getElementById('existingImageInfo').classList.add('hidden');
+        document.getElementById('previewImage').classList.add('hidden');
+        document.getElementById('previewImage').src = '';
+    }
+
     document.getElementById('formModalTitle').textContent = 'Edit Banner';
     document.getElementById('formSubmitBtn').textContent = 'Update Banner';
     document.getElementById('bannerForm').action = '/admin/promo-banners/' + banner.id + '/update';

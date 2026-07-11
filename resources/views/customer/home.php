@@ -27,16 +27,16 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
 
 <!-- ==================== HERO SLIDER ==================== -->
 <?php if (!empty($heroSlides)): ?>
-<section class="relative w-full overflow-hidden" style="min-height: 300px;">
+<section class="relative w-full overflow-hidden" style="height: clamp(420px, 56vh, 620px);">
     <!-- Slides Container -->
-    <div id="heroSlider" class="relative w-full">
+    <div id="heroSlider" class="relative w-full h-full">
         <?php foreach ($heroSlides as $index => $slide): ?>
-        <div class="hero-slide overflow-hidden <?= $index === 0 ? 'active' : '' ?>" data-index="<?= $index ?>">
-            <!-- Background Image (in flow to set natural height) -->
+        <div class="hero-slide absolute inset-0 <?= $index === 0 ? 'active' : '' ?>" data-index="<?= $index ?>">
+            <!-- Background Image (contained, not cropped) -->
             <?php if (!empty($slide['image_url'])): ?>
-            <div class="relative w-full overflow-hidden">
+            <div class="absolute inset-0 bg-black">
                 <img src="<?= e($slide['image_url']) ?>" alt="<?= e($slide['title']) ?>"
-                     class="w-full h-auto block transition-transform duration-[8000ms] ease-linear
+                     class="w-full h-full object-contain transition-transform duration-[8000ms] ease-linear
                             <?php echo $index === 0 ? 'hero-zoom-active' : ''; ?>">
             </div>
             <?php endif; ?>
@@ -53,7 +53,7 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
             </div>
 
             <!-- Slide Content -->
-            <div class="relative h-full flex items-center">
+            <div class="absolute inset-0 flex items-center z-10">
                 <div class="w-full px-4 sm:px-6 lg:px-8">
                     <div class="max-w-2xl <?= $slide['text_position'] === 'center' ? 'mx-auto text-center' : ($slide['text_position'] === 'right' ? 'ml-auto text-right' : '') ?>">
                         
@@ -269,11 +269,26 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
     <div class="w-full px-4 sm:px-6 lg:px-8">
         <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
             <?php foreach ($promoBanners as $banner): ?>
-            <div class="relative bg-gradient-to-br <?= e($banner['bg_gradient'] ?? 'from-amber-500 to-orange-600') ?> rounded-2xl p-8 md:p-10 text-white overflow-hidden group hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
-                <!-- Decorative circles -->
+            <?php $hasImage = !empty($banner['image_url']); ?>
+            <div class="relative bg-gradient-to-br <?= e($banner['bg_gradient'] ?? 'from-amber-500 to-orange-600') ?> rounded-2xl overflow-hidden group hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 <?= $hasImage ? 'min-h-[220px]' : 'p-8 md:p-10' ?>">
+                <?php if ($hasImage): ?>
+                <!-- Banner with image -->
+                <img src="<?= e($banner['image_url']) ?>" alt="<?= e($banner['title']) ?>" class="absolute inset-0 w-full h-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent"></div>
+                <div class="relative z-10 h-full flex flex-col justify-center p-8 md:p-10 text-white">
+                    <?php if (!empty($banner['subtitle'])): ?>
+                    <p class="text-white/80 text-sm mb-2 max-w-xs"><?= e($banner['subtitle']) ?></p>
+                    <?php endif; ?>
+                    <h3 class="font-heading text-2xl md:text-3xl font-bold mb-4 leading-tight"><?= e($banner['title']) ?></h3>
+                    <a href="<?= e($banner['cta_link'] ?? '/products') ?>" class="inline-flex items-center gap-2 bg-white text-gray-900 font-semibold px-6 py-3 rounded-xl hover:bg-gray-50 transition-all duration-300 hover:gap-3 w-fit group/btn">
+                        <?= e($banner['cta_text'] ?? 'Shop Now') ?> <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+                <?php else: ?>
+                <!-- Banner without image (gradient only) -->
                 <div class="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-125 transition-transform duration-700"></div>
                 <div class="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2 group-hover:scale-125 transition-transform duration-700"></div>
-                <div class="relative">
+                <div class="relative text-white">
                     <?php if (!empty($banner['icon'])): ?>
                     <span class="inline-flex items-center justify-center w-12 h-12 bg-white/20 rounded-xl mb-4 group-hover:scale-110 transition-transform duration-300">
                         <i data-lucide="<?= e($banner['icon']) ?>" class="w-6 h-6"></i>
@@ -285,6 +300,7 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
                         <?= e($banner['cta_text'] ?? 'Shop Now') ?> <i data-lucide="arrow-right" class="w-4 h-4"></i>
                     </a>
                 </div>
+                <?php endif; ?>
             </div>
             <?php endforeach; ?>
         </div>
@@ -470,19 +486,15 @@ $showTestimonials = !empty($googleBusinessId);
     /* === HERO SLIDER ANIMATIONS === */
     .hero-slide {
         opacity: 0;
-        position: absolute;
-        inset: 0;
-        width: 100%;
         transition: opacity 1s ease-in-out;
         pointer-events: none;
     }
     .hero-slide.active {
         opacity: 1;
-        position: relative;
         pointer-events: auto;
     }
     .hero-slide.active img {
-        transform: scale(1.04);
+        transform: scale(1.06);
     }
 
     /* Floating text entrance animations */
