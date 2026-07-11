@@ -36,7 +36,7 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
             <?php if (!empty($slide['image_url'])): ?>
             <div class="absolute inset-0">
                 <img src="<?= e($slide['image_url']) ?>" alt="<?= e($slide['title']) ?>"
-                     class="w-full h-full object-cover object-center transition-transform duration-[8000ms] ease-linear
+                     class="w-full h-full object-cover object-top transition-transform duration-[8000ms] ease-linear
                             <?php echo $index === 0 ? 'hero-zoom-active' : ''; ?>">
             </div>
             <?php endif; ?>
