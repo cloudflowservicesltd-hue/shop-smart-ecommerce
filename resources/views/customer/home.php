@@ -32,11 +32,11 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
     <div id="heroSlider" class="relative w-full h-full">
         <?php foreach ($heroSlides as $index => $slide): ?>
         <div class="hero-slide absolute inset-0 <?= $index === 0 ? 'active' : '' ?>" data-index="<?= $index ?>">
-            <!-- Background Image (contained, not cropped) -->
+            <!-- Background Image (covers slider) -->
             <?php if (!empty($slide['image_url'])): ?>
-            <div class="absolute inset-0 bg-black">
+            <div class="absolute inset-0">
                 <img src="<?= e($slide['image_url']) ?>" alt="<?= e($slide['title']) ?>"
-                     class="w-full h-full object-contain transition-transform duration-[8000ms] ease-linear
+                     class="w-full h-full object-cover object-center transition-transform duration-[8000ms] ease-linear
                             <?php echo $index === 0 ? 'hero-zoom-active' : ''; ?>">
             </div>
             <?php endif; ?>
@@ -494,7 +494,7 @@ $showTestimonials = !empty($googleBusinessId);
         pointer-events: auto;
     }
     .hero-slide.active img {
-        transform: scale(1.06);
+        transform: scale(1.1);
     }
 
     /* Floating text entrance animations */
