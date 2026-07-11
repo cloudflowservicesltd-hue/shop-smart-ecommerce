@@ -218,6 +218,58 @@ $currentPaymentStatus = $order['payment_status'] ?? 'pending';
                     </div>
                     <?php endif; ?>
 
+                    <?php
+                    $hasCustomShipping = !empty($order['receiver_name']) || !empty($order['apartment']) || !empty($order['street']) || !empty($order['house_no']) || !empty($order['landmark']) || !empty($order['delivery_instructions']);
+                    ?>
+                    <?php if ($hasCustomShipping): ?>
+                    <div class="mt-3 p-3 bg-amber-50/60 border border-amber-100 rounded-lg">
+                        <p class="text-[10px] font-semibold uppercase tracking-wider text-amber-700 mb-2 flex items-center gap-1">
+                            <i data-lucide="package" class="w-3 h-3"></i> Shipping Details
+                        </p>
+                        <div class="space-y-1.5 text-sm">
+                            <?php if (!empty($order['receiver_name'])): ?>
+                            <div class="flex items-start gap-2">
+                                <i data-lucide="user" class="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5"></i>
+                                <div><span class="text-gray-400 text-xs">Receiver:</span> <span class="font-medium text-gray-800"><?= e($order['receiver_name']) ?></span></div>
+                            </div>
+                            <?php endif; ?>
+                            <?php if (!empty($order['apartment'])): ?>
+                            <div class="flex items-start gap-2">
+                                <i data-lucide="building" class="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5"></i>
+                                <div><span class="text-gray-400 text-xs">Apartment:</span> <span class="text-gray-800"><?= e($order['apartment']) ?></span></div>
+                            </div>
+                            <?php endif; ?>
+                            <?php if (!empty($order['house_no'])): ?>
+                            <div class="flex items-start gap-2">
+                                <i data-lucide="home" class="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5"></i>
+                                <div><span class="text-gray-400 text-xs">House/Unit:</span> <span class="text-gray-800"><?= e($order['house_no']) ?></span></div>
+                            </div>
+                            <?php endif; ?>
+                            <?php if (!empty($order['street'])): ?>
+                            <div class="flex items-start gap-2">
+                                <i data-lucide="route" class="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5"></i>
+                                <div><span class="text-gray-400 text-xs">Street:</span> <span class="text-gray-800"><?= e($order['street']) ?></span></div>
+                            </div>
+                            <?php endif; ?>
+                            <?php if (!empty($order['landmark'])): ?>
+                            <div class="flex items-start gap-2">
+                                <i data-lucide="landmark" class="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5"></i>
+                                <div><span class="text-gray-400 text-xs">Landmark:</span> <span class="text-gray-800"><?= e($order['landmark']) ?></span></div>
+                            </div>
+                            <?php endif; ?>
+                            <?php if (!empty($order['delivery_instructions'])): ?>
+                            <div class="flex items-start gap-2 mt-1 pt-1.5 border-t border-amber-100">
+                                <i data-lucide="clipboard-list" class="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5"></i>
+                                <div>
+                                    <span class="text-gray-400 text-xs block">Delivery Instructions:</span>
+                                    <span class="text-gray-800 text-xs"><?= nl2br(e($order['delivery_instructions'])) ?></span>
+                                </div>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
                     <?php if (!empty($order['customer_address'])): ?>
                     <div class="flex items-start gap-2.5 text-sm">
                         <i data-lucide="map-pin" class="w-4 h-4 text-gray-400 shrink-0 mt-0.5"></i>
