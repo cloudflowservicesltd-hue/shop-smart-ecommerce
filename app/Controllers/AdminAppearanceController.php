@@ -17,7 +17,7 @@ class AdminAppearanceController extends BaseController
 
     public function update(): void
     {
-        $fields = ['hero_autoplay','hero_interval','hero_animation','show_categories','show_featured','show_new_arrivals','show_promo_banners','show_trust_badges','show_newsletter','newsletter_heading','newsletter_subheading'];
+        $fields = ['hero_autoplay','hero_interval','hero_animation','hero_image_fit','hero_image_position','show_categories','show_featured','show_new_arrivals','show_promo_banners','show_trust_badges','show_newsletter','newsletter_heading','newsletter_subheading'];
         foreach ($fields as $f) {
             $val = Request::post($f, '');
             $existing = Database::selectOne("SELECT id FROM settings WHERE `key` = ?", [$f]);

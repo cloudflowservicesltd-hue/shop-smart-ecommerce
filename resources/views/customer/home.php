@@ -11,6 +11,8 @@ foreach (Database::select("SELECT * FROM settings WHERE group_name = 'appearance
 }
 $heroAutoplay = ($appearance['hero_autoplay'] ?? '1') === '1';
 $heroInterval = (int)($appearance['hero_interval'] ?? 5000);
+$heroImageFit = in_array($appearance['hero_image_fit'] ?? 'cover', ['cover','contain','fill','none']) ? $appearance['hero_image_fit'] : 'cover';
+$heroImagePosition = in_array($appearance['hero_image_position'] ?? 'center', ['top','bottom','left','right','center']) ? $appearance['hero_image_position'] : 'center';
 $showCategories = ($appearance['show_categories'] ?? '1') === '1';
 $showFeatured = ($appearance['show_featured'] ?? '1') === '1';
 $showNewArrivals = ($appearance['show_new_arrivals'] ?? '1') === '1';
@@ -36,7 +38,7 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
             <?php if (!empty($slide['image_url'])): ?>
             <div class="absolute inset-0">
                 <img src="<?= e($slide['image_url']) ?>" alt="<?= e($slide['title']) ?>"
-                     class="w-full h-full object-cover object-top transition-transform duration-[8000ms] ease-linear
+                     class="w-full h-full object-<?= $heroImageFit ?> object-<?= $heroImagePosition ?> transition-transform duration-[8000ms] ease-linear
                             <?php echo $index === 0 ? 'hero-zoom-active' : ''; ?>">
             </div>
             <?php endif; ?>
@@ -493,9 +495,11 @@ $showTestimonials = !empty($googleBusinessId);
         opacity: 1;
         pointer-events: auto;
     }
+    <?php if ($heroImageFit === 'cover' || $heroImageFit === 'fill'): ?>
     .hero-slide.active img {
         transform: scale(1.1);
     }
+    <?php endif; ?>
 
     /* Floating text entrance animations */
     .hero-slide .slide-badge {

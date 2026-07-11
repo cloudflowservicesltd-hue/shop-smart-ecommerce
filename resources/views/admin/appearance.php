@@ -60,6 +60,34 @@
                         <option value="fade" <?= e($settings['hero_animation'] ?? '') === 'fade' ? 'selected' : '' ?>>Fade</option>
                     </select>
                 </div>
+
+                <!-- Hero Image Fit -->
+                <div>
+                    <label for="hero_image_fit" class="block text-sm font-medium text-gray-700 mb-1">Image Fit Mode</label>
+                    <p class="text-sm text-gray-500 mb-2">How the hero image fills the banner area.</p>
+                    <select id="hero_image_fit" name="hero_image_fit"
+                        class="w-full max-w-xs rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors">
+                        <option value="cover" <?= (e($settings['hero_image_fit'] ?? '') === 'cover' || empty($settings['hero_image_fit'])) ? 'selected' : '' ?>>Cover — Fills area, may crop edges</option>
+                        <option value="contain" <?= e($settings['hero_image_fit'] ?? '') === 'contain' ? 'selected' : '' ?>>Contain — Shows full image, no crop</option>
+                        <option value="fill" <?= e($settings['hero_image_fit'] ?? '') === 'fill' ? 'selected' : '' ?>>Fill — Stretches to fill (may distort)</option>
+                        <option value="none" <?= e($settings['hero_image_fit'] ?? '') === 'none' ? 'selected' : '' ?>>Auto — Natural size, no scaling</option>
+                    </select>
+                    <p class="mt-1.5 text-xs text-gray-400">Use "Contain" to show the entire image without cropping.</p>
+                </div>
+
+                <!-- Hero Image Position -->
+                <div>
+                    <label for="hero_image_position" class="block text-sm font-medium text-gray-700 mb-1">Image Position</label>
+                    <p class="text-sm text-gray-500 mb-2">Where the image is anchored within the banner (when using Cover or Fill).</p>
+                    <select id="hero_image_position" name="hero_image_position"
+                        class="w-full max-w-xs rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors">
+                        <option value="center" <?= (e($settings['hero_image_position'] ?? '') === 'center' || empty($settings['hero_image_position'])) ? 'selected' : '' ?>>Center</option>
+                        <option value="top" <?= e($settings['hero_image_position'] ?? '') === 'top' ? 'selected' : '' ?>>Top</option>
+                        <option value="bottom" <?= e($settings['hero_image_position'] ?? '') === 'bottom' ? 'selected' : '' ?>>Bottom</option>
+                        <option value="left" <?= e($settings['hero_image_position'] ?? '') === 'left' ? 'selected' : '' ?>>Left</option>
+                        <option value="right" <?= e($settings['hero_image_position'] ?? '') === 'right' ? 'selected' : '' ?>>Right</option>
+                    </select>
+                </div>
             </div>
         </div>
 
