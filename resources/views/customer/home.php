@@ -27,16 +27,16 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
 
 <!-- ==================== HERO SLIDER ==================== -->
 <?php if (!empty($heroSlides)): ?>
-<section class="relative w-full overflow-hidden" style="height: clamp(400px, 60vh, 650px);">
+<section class="relative w-full overflow-hidden" style="min-height: 300px;">
     <!-- Slides Container -->
-    <div id="heroSlider" class="relative w-full h-full">
+    <div id="heroSlider" class="relative w-full">
         <?php foreach ($heroSlides as $index => $slide): ?>
-        <div class="hero-slide absolute inset-0 <?= $index === 0 ? 'active' : '' ?>" data-index="<?= $index ?>">
-            <!-- Background Image -->
+        <div class="hero-slide overflow-hidden <?= $index === 0 ? 'active' : '' ?>" data-index="<?= $index ?>">
+            <!-- Background Image (in flow to set natural height) -->
             <?php if (!empty($slide['image_url'])): ?>
-            <div class="absolute inset-0">
+            <div class="relative w-full overflow-hidden">
                 <img src="<?= e($slide['image_url']) ?>" alt="<?= e($slide['title']) ?>"
-                     class="w-full h-full object-cover object-top scale-110 transition-transform duration-[8000ms] ease-linear
+                     class="w-full h-auto block transition-transform duration-[8000ms] ease-linear
                             <?php echo $index === 0 ? 'hero-zoom-active' : ''; ?>">
             </div>
             <?php endif; ?>
@@ -470,15 +470,19 @@ $showTestimonials = !empty($googleBusinessId);
     /* === HERO SLIDER ANIMATIONS === */
     .hero-slide {
         opacity: 0;
+        position: absolute;
+        inset: 0;
+        width: 100%;
         transition: opacity 1s ease-in-out;
         pointer-events: none;
     }
     .hero-slide.active {
         opacity: 1;
+        position: relative;
         pointer-events: auto;
     }
     .hero-slide.active img {
-        transform: scale(1.15);
+        transform: scale(1.04);
     }
 
     /* Floating text entrance animations */
