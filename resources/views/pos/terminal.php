@@ -263,6 +263,28 @@ try {
 
             <!-- Modal Body -->
             <div class="px-6 py-5 space-y-4">
+                <!-- Customer & Shipping (collapsible) -->
+                <div>
+                    <button type="button" onclick="togglePosShipping()" class="flex items-center justify-between w-full text-left group">
+                        <span class="text-sm font-medium text-gray-700 flex items-center gap-2">
+                            <i data-lucide="user" class="w-4 h-4 text-gray-400"></i>
+                            Customer & Shipping Info
+                        </span>
+                        <i data-lucide="chevron-down" id="posShipChevron" class="w-4 h-4 text-gray-400 transition-transform duration-200"></i>
+                    </button>
+                    <div id="posShippingFields" class="hidden mt-3 space-y-2">
+                        <input type="text" id="posCustomerName" placeholder="Customer name (optional)" autocomplete="off"
+                            class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">+254</span>
+                            <input type="tel" id="posCustomerPhone" placeholder="Phone (optional)" maxlength="12" inputmode="tel" autocomplete="off"
+                                class="w-full pl-14 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+                        </div>
+                        <input type="text" id="posCustomerAddress" placeholder="Address / delivery notes (optional)" autocomplete="off"
+                            class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+                    </div>
+                </div>
+
                 <!-- Order Summary -->
                 <div class="bg-gray-50 rounded-xl p-4 space-y-2">
                     <div class="flex justify-between text-sm"><span class="text-gray-500">Subtotal</span><span id="paySubtotal"><?= e($posCurrencySymbol) ?> 0.00</span></div>
@@ -1040,6 +1062,13 @@ try {
         } catch(e) { posLogToConsole('SET_QUICK_AMOUNT_ERROR', { error: e.message }); }
     }
 
+    function togglePosShipping() {
+        var fields = document.getElementById('posShippingFields');
+        var chevron = document.getElementById('posShipChevron');
+        fields.classList.toggle('hidden');
+        chevron.style.transform = fields.classList.contains('hidden') ? '' : 'rotate(180deg)';
+    }
+
     function calcChange() {
         try {
         var totals = getTotals();
@@ -1129,6 +1158,14 @@ try {
             fd.append('change_amount', changeAmount);
             fd.append('transaction_code', transactionCode);
             if (stkCheckoutId) fd.append('stk_checkout_id', stkCheckoutId);
+
+            // Customer & shipping info (optional)
+            var cName = (document.getElementById('posCustomerName').value || '').trim();
+            var cPhone = (document.getElementById('posCustomerPhone').value || '').trim();
+            var cAddr = (document.getElementById('posCustomerAddress').value || '').trim();
+            if (cName) fd.append('customer_name', cName);
+            if (cPhone) fd.append('customer_phone', cPhone);
+            if (cAddr) fd.append('customer_address', cAddr);
 
             posLogToConsole('CHECKOUT_SENDING', { method: currentPayMethod, total: checkoutTotal, items: cart.length });
 

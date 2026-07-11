@@ -72,6 +72,9 @@ class PosController extends BaseController
             $changeAmount = (float)($input['change_amount'] ?? 0);
             $transactionCode = $input['transaction_code'] ?? '';
             $stkCheckoutId = $input['stk_checkout_id'] ?? '';
+            $customerName = trim($input['customer_name'] ?? '');
+            $customerPhone = trim($input['customer_phone'] ?? '');
+            $customerAddress = trim($input['customer_address'] ?? '');
             $userId = Auth::id();
             $now = date('Y-m-d H:i:s');
 
@@ -79,7 +82,7 @@ class PosController extends BaseController
 
             $requiredOrderCols = [
                 'order_number' => $orderNum,
-                'customer_name' => 'Walk-in Customer',
+                'customer_name' => $customerName ?: 'Walk-in Customer',
                 'status' => 'completed',
                 'payment_method' => $method,
                 'payment_status' => 'paid',
@@ -91,6 +94,8 @@ class PosController extends BaseController
                 'customer_id' => null, 'cashier_id' => $userId,
                 'amount_received' => $amountReceived, 'change_amount' => $changeAmount,
                 'referral_code' => null, 'notes' => '',
+                'customer_phone' => $customerPhone ?: null,
+                'customer_address' => $customerAddress ?: null,
             ];
 
             try {
