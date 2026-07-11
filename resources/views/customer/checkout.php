@@ -125,6 +125,17 @@ $colorMap = [
             <!-- Main Form -->
             <div class="flex-1">
                 <?php if ($currentStep === 'shipping'): ?>
+                <?php
+                // Load address field settings from DB
+                $addressFieldSettings = [];
+                $afKeys = ['google_maps_enabled','google_maps_api_key','address_field_receiver_name','address_field_apartment','address_field_street','address_field_house_no','address_field_landmark','address_field_delivery_instructions'];
+                foreach ($afKeys as $afk) {
+                    $row = Database::selectOne("SELECT value FROM settings WHERE `key` = ?", [$afk]);
+                    $addressFieldSettings[$afk] = $row ? $row['value'] : '';
+                }
+                $mapsEnabled = ($addressFieldSettings['google_maps_enabled'] ?? '') === '1';
+                $mapsApiKey = $addressFieldSettings['google_maps_api_key'] ?? '';
+                ?>
                 <!-- Shipping Information -->
                 <div class="bg-white border border-gray-200 rounded-2xl p-6">
                     <h2 class="font-heading text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
@@ -146,7 +157,7 @@ $colorMap = [
                             <input type="tel" name="phone" required value="<?= e($shipping['phone'] ?? Auth::user()['phone'] ?? '') ?>"
                                    class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="+254 700 000 000">
                         </div>
-                        <div>
+                        <div class="sm:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">City *</label>
                             <select name="city" id="citySelect" required class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white">
                                 <option value="">Select city</option>
@@ -156,11 +167,104 @@ $colorMap = [
                                 <?php endforeach; ?>
                             </select>
                         </div>
+
+                        <?php if ($mapsEnabled && !empty($mapsApiKey)): ?>
+                        <!-- Google Maps Picker -->
+                        <div class="sm:col-span-2">
+                            <div class="border border-gray-200 rounded-xl overflow-hidden">
+                                <div class="p-4 bg-amber-50 border-b border-amber-100 flex items-center gap-2">
+                                    <i data-lucide="navigation" class="w-5 h-5 text-amber-600"></i>
+                                    <span class="text-sm font-semibold text-amber-800">Pick Your Location on the Map</span>
+                                </div>
+                                <!-- Search Input -->
+                                <div class="p-3 border-b border-gray-100">
+                                    <div class="relative">
+                                        <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                        <input type="text" id="mapSearchInput" placeholder="Search for a location or address..."
+                                               class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                                               autocomplete="off">
+                                    </div>
+                                </div>
+                                <!-- Map Container -->
+                                <div id="googleMap" class="w-full h-48 bg-gray-100 cursor-crosshair"></div>
+                                <!-- Map Info Bar -->
+                                <div id="mapInfoBar" class="hidden p-3 bg-green-50 border-t border-green-100">
+                                    <div class="flex items-center gap-2">
+                                        <i data-lucide="check-circle-2" class="w-4 h-4 text-green-600 shrink-0"></i>
+                                        <span class="text-xs text-green-700 font-medium" id="mapSelectedText">Location selected</span>
+                                    </div>
+                                </div>
+                                <!-- Hidden inputs -->
+                                <input type="hidden" name="map_latitude" id="mapLatitude" value="<?= e($shipping['map_latitude'] ?? '') ?>">
+                                <input type="hidden" name="map_longitude" id="mapLongitude" value="<?= e($shipping['map_longitude'] ?? '') ?>">
+                            </div>
+                        </div>
+                        <?php endif; ?>
+
+                        <?php if (($addressFieldSettings['address_field_receiver_name'] ?? '') === '1'): ?>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1.5">
+                                <i data-lucide="user" class="w-3.5 h-3.5 text-gray-400"></i> Receiver Name
+                            </label>
+                            <input type="text" name="receiver_name" value="<?= e($shipping['receiver_name'] ?? '') ?>"
+                                   class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="Name of the person receiving the order">
+                        </div>
+                        <?php endif; ?>
+
+                        <?php if (($addressFieldSettings['address_field_apartment'] ?? '') === '1'): ?>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1.5">
+                                <i data-lucide="building" class="w-3.5 h-3.5 text-gray-400"></i> Apartment / Building Name
+                            </label>
+                            <input type="text" name="apartment" value="<?= e($shipping['apartment'] ?? '') ?>"
+                                   class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="e.g. Westgate Mall, Apt 4B">
+                        </div>
+                        <?php endif; ?>
+
+                        <?php if (($addressFieldSettings['address_field_street'] ?? '') === '1'): ?>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1.5">
+                                <i data-lucide="route" class="w-3.5 h-3.5 text-gray-400"></i> Street Name
+                            </label>
+                            <input type="text" name="street" value="<?= e($shipping['street'] ?? '') ?>"
+                                   class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="e.g. Kenyatta Avenue">
+                        </div>
+                        <?php endif; ?>
+
+                        <?php if (($addressFieldSettings['address_field_house_no'] ?? '') === '1'): ?>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1.5">
+                                <i data-lucide="home" class="w-3.5 h-3.5 text-gray-400"></i> House / Unit Number
+                            </label>
+                            <input type="text" name="house_no" value="<?= e($shipping['house_no'] ?? '') ?>"
+                                   class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="e.g. House 12, Unit 3A">
+                        </div>
+                        <?php endif; ?>
+
+                        <?php if (($addressFieldSettings['address_field_landmark'] ?? '') === '1'): ?>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1.5">
+                                <i data-lucide="landmark" class="w-3.5 h-3.5 text-gray-400"></i> Landmark / Nearby Place
+                            </label>
+                            <input type="text" name="landmark" value="<?= e($shipping['landmark'] ?? '') ?>"
+                                   class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="e.g. Near Uchumi Supermarket">
+                        </div>
+                        <?php endif; ?>
+
                         <div class="sm:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Delivery Address <span class="text-gray-400 font-normal">(optional)</span></label>
-                            <input type="text" name="address" value="<?= e($shipping['address'] ?? Auth::user()['address'] ?? '') ?>"
-                                   class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="Street address, apartment, suite, etc.">
+                            <textarea name="address" rows="3" id="deliveryAddressInput" class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none" placeholder="Full delivery address..."><?= e($shipping['address'] ?? Auth::user()['address'] ?? '') ?></textarea>
                         </div>
+
+                        <?php if (($addressFieldSettings['address_field_delivery_instructions'] ?? '') === '1'): ?>
+                        <div class="sm:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1.5">
+                                <i data-lucide="clipboard-list" class="w-3.5 h-3.5 text-gray-400"></i> Additional Delivery Instructions
+                            </label>
+                            <textarea name="delivery_instructions" rows="3" class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none" placeholder="E.g. Gate code 1234, leave at front desk, call on arrival..."><?= e($shipping['delivery_instructions'] ?? '') ?></textarea>
+                        </div>
+                        <?php endif; ?>
+
                         <div class="sm:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Order Notes (optional)</label>
                             <textarea name="notes" rows="3" class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none" placeholder="Any special delivery instructions..."><?= e($shipping['notes'] ?? '') ?></textarea>
@@ -172,6 +276,170 @@ $colorMap = [
                         </button>
                     </div>
                 </div>
+
+                <?php if ($mapsEnabled && !empty($mapsApiKey)): ?>
+                <script src="https://maps.googleapis.com/maps/api/js?key=<?= e($mapsApiKey) ?>&libraries=places" async defer></script>
+                <script>
+                (function() {
+                    function initMap() {
+                        if (!google || !google.maps) {
+                            setTimeout(initMap, 200);
+                            return;
+                        }
+
+                        const mapEl = document.getElementById('googleMap');
+                        if (!mapEl) return;
+
+                        // Default center (Nairobi, Kenya)
+                        const defaultCenter = { lat: -1.2921, lng: 36.8219 };
+                        const map = new google.maps.Map(mapEl, {
+                            center: defaultCenter,
+                            zoom: 13,
+                            mapTypeControl: false,
+                            streetViewControl: false,
+                            fullscreenControl: false,
+                            zoomControl: true,
+                            styles: [
+                                { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }
+                            ]
+                        });
+
+                        let marker = null;
+                        const latInput = document.getElementById('mapLatitude');
+                        const lngInput = document.getElementById('mapLongitude');
+                        const addressInput = document.getElementById('deliveryAddressInput');
+                        const infoBar = document.getElementById('mapInfoBar');
+                        const infoText = document.getElementById('mapSelectedText');
+
+                        // Restore marker if lat/lng exist
+                        if (latInput.value && lngInput.value) {
+                            const savedLat = parseFloat(latInput.value);
+                            const savedLng = parseFloat(lngInput.value);
+                            if (!isNaN(savedLat) && !isNaN(savedLng)) {
+                                const savedPos = { lat: savedLat, lng: savedLng };
+                                map.setCenter(savedPos);
+                                marker = new google.maps.Marker({
+                                    position: savedPos,
+                                    map: map,
+                                    draggable: true,
+                                    animation: google.maps.Animation.DROP
+                                });
+                                infoBar.classList.remove('hidden');
+                            }
+                        }
+
+                        function placeMarkerAndGeocode(latlng) {
+                            if (marker) {
+                                marker.setPosition(latlng);
+                            } else {
+                                marker = new google.maps.Marker({
+                                    position: latlng,
+                                    map: map,
+                                    draggable: true,
+                                    animation: google.maps.Animation.DROP
+                                });
+                            }
+                            map.panTo(latlng);
+                            latInput.value = latlng.lat();
+                            lngInput.value = latlng.lng();
+
+                            // Reverse geocode to get address
+                            const geocoder = new google.maps.Geocoder();
+                            geocoder.geocode({ location: latlng }, function(results, status) {
+                                if (status === 'OK' && results[0]) {
+                                    const addr = results[0].formatted_address;
+                                    if (addressInput) {
+                                        addressInput.value = addr;
+                                    }
+                                    infoText.textContent = addr || 'Location selected';
+                                    infoBar.classList.remove('hidden');
+
+                                    // Try to fill custom fields from address components
+                                    const streetInput = document.querySelector('input[name="street"]');
+                                    const apartmentInput = document.querySelector('input[name="apartment"]');
+                                    let streetName = '';
+                                    let sublocality = '';
+                                    for (const comp of results[0].address_components) {
+                                        const types = comp.types;
+                                        if (types.includes('route') && !streetName) {
+                                            streetName = comp.long_name;
+                                        }
+                                        if (types.includes('sublocality_level_1') && !sublocality) {
+                                            sublocality = comp.long_name;
+                                        }
+                                    }
+                                    if (streetInput && streetName) streetInput.value = streetName;
+                                    if (apartmentInput && sublocality && !apartmentInput.value) apartmentInput.value = sublocality;
+                                } else {
+                                    infoText.textContent = 'Location selected';
+                                    infoBar.classList.remove('hidden');
+                                }
+                            });
+                        }
+
+                        // Click on map to place marker
+                        map.addListener('click', function(e) {
+                            placeMarkerAndGeocode(e.latLng);
+                        });
+
+                        // Drag marker to update position
+                        google.maps.event.addListener(map, 'idle', function() {
+                            if (marker) {
+                                google.maps.event.addListener(marker, 'dragend', function(e) {
+                                    placeMarkerAndGeocode(e.latLng);
+                                });
+                            }
+                        });
+
+                        // Autocomplete for search input
+                        const searchInput = document.getElementById('mapSearchInput');
+                        if (searchInput) {
+                            const autocomplete = new google.maps.places.Autocomplete(searchInput, {
+                                fields: ['geometry', 'name', 'formatted_address', 'address_components']
+                            });
+                            autocomplete.bindTo('bounds', map);
+
+                            autocomplete.addListener('place_changed', function() {
+                                const place = autocomplete.getPlace();
+                                if (!place.geometry || !place.geometry.location) return;
+                                map.setCenter(place.geometry.location);
+                                map.setZoom(16);
+                                placeMarkerAndGeocode(place.geometry.location);
+
+                                // Fill address from place
+                                if (place.formatted_address && addressInput) {
+                                    addressInput.value = place.formatted_address;
+                                }
+                                // Fill components
+                                if (place.address_components) {
+                                    let streetVal = '', aptVal = '', houseVal = '';
+                                    for (const comp of place.address_components) {
+                                        const types = comp.types;
+                                        if (types.includes('route') && !streetVal) streetVal = comp.long_name;
+                                        if (types.includes('sublocality_level_1') && !aptVal) aptVal = comp.long_name;
+                                        if (types.includes('street_number') && !houseVal) houseVal = comp.long_name;
+                                    }
+                                    const streetInput = document.querySelector('input[name="street"]');
+                                    const apartmentInput = document.querySelector('input[name="apartment"]');
+                                    const houseInput = document.querySelector('input[name="house_no"]');
+                                    if (streetInput && streetVal) streetInput.value = streetVal;
+                                    if (apartmentInput && aptVal) apartmentInput.value = aptVal;
+                                    if (houseInput && houseVal) houseInput.value = houseVal;
+                                }
+                                searchInput.value = '';
+                            });
+                        }
+                    }
+
+                    // Wait for Google Maps to load
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', function() { setTimeout(initMap, 500); });
+                    } else {
+                        setTimeout(initMap, 500);
+                    }
+                })();
+                </script>
+                <?php endif; ?>
 
                 <?php elseif ($currentStep === 'payment'): ?>
                 <!-- Payment Method -->
@@ -227,7 +495,28 @@ $colorMap = [
                             <div><span class="text-gray-400">Email:</span> <span class="font-medium text-gray-900"><?= e($shipping['email'] ?? '') ?></span></div>
                             <div><span class="text-gray-400">Phone:</span> <span class="font-medium text-gray-900"><?= e($shipping['phone'] ?? '') ?></span></div>
                             <div><span class="text-gray-400">City:</span> <span class="font-medium text-gray-900"><?= e($shipping['city'] ?? '') ?></span></div>
+                            <?php if (!empty($shipping['receiver_name'])): ?>
+                            <div><span class="text-gray-400">Receiver:</span> <span class="font-medium text-gray-900"><?= e($shipping['receiver_name']) ?></span></div>
+                            <?php endif; ?>
+                            <?php if (!empty($shipping['apartment'])): ?>
+                            <div><span class="text-gray-400">Apartment:</span> <span class="font-medium text-gray-900"><?= e($shipping['apartment']) ?></span></div>
+                            <?php endif; ?>
+                            <?php if (!empty($shipping['street'])): ?>
+                            <div><span class="text-gray-400">Street:</span> <span class="font-medium text-gray-900"><?= e($shipping['street']) ?></span></div>
+                            <?php endif; ?>
+                            <?php if (!empty($shipping['house_no'])): ?>
+                            <div><span class="text-gray-400">House/Unit:</span> <span class="font-medium text-gray-900"><?= e($shipping['house_no']) ?></span></div>
+                            <?php endif; ?>
+                            <?php if (!empty($shipping['landmark'])): ?>
+                            <div><span class="text-gray-400">Landmark:</span> <span class="font-medium text-gray-900"><?= e($shipping['landmark']) ?></span></div>
+                            <?php endif; ?>
                             <div class="sm:col-span-2"><span class="text-gray-400">Address:</span> <span class="font-medium text-gray-900"><?= e($shipping['address'] ?? '') ?></span></div>
+                            <?php if (!empty($shipping['delivery_instructions'])): ?>
+                            <div class="sm:col-span-2"><span class="text-gray-400">Delivery Instructions:</span> <span class="font-medium text-gray-900"><?= e($shipping['delivery_instructions']) ?></span></div>
+                            <?php endif; ?>
+                            <?php if (!empty($shipping['map_latitude']) && !empty($shipping['map_longitude'])): ?>
+                            <div class="sm:col-span-2"><span class="text-gray-400">Coordinates:</span> <span class="font-mono text-xs text-gray-500"><?= e($shipping['map_latitude']) ?>, <?= e($shipping['map_longitude']) ?></span></div>
+                            <?php endif; ?>
                         </div>
                     </div>
 

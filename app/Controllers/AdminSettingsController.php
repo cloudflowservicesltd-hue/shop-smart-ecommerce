@@ -216,6 +216,14 @@ class AdminSettingsController extends BaseController
             $upsert($f, $val, 'general');
         }
 
+        // Address & Map settings
+        $upsert('google_maps_enabled', Request::post('google_maps_enabled', '0'), 'address');
+        $upsert('google_maps_api_key', Request::post('google_maps_api_key', ''), 'address');
+        $addressFieldKeys = ['address_field_receiver_name','address_field_apartment','address_field_street','address_field_house_no','address_field_landmark','address_field_delivery_instructions'];
+        foreach ($addressFieldKeys as $afk) {
+            $upsert($afk, Request::post($afk, '0'), 'address');
+        }
+
         Session::flash('success', 'Settings saved successfully');
         Redirect::to('/admin/settings');
     }

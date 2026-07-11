@@ -327,4 +327,16 @@ $db->exec("CREATE TABLE IF NOT EXISTS `migrations` (
     `ran_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+// Add shipping latitude/longitude columns to orders table
+try {
+    $db->exec("ALTER TABLE `orders` ADD COLUMN `shipping_latitude` TEXT AFTER `customer_address`");
+} catch (\Throwable $e) {
+    // Column may already exist, ignore
+}
+try {
+    $db->exec("ALTER TABLE `orders` ADD COLUMN `shipping_longitude` TEXT AFTER `shipping_latitude`");
+} catch (\Throwable $e) {
+    // Column may already exist, ignore
+}
+
 echo "Database migration completed successfully.\n";

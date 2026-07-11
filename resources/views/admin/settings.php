@@ -368,6 +368,64 @@
             </div>
         </div>
 
+        <!-- Address & Map Settings -->
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <h3 class="font-medium mb-4 flex items-center gap-2"><i data-lucide="map" class="w-5 h-5 text-amber-600"></i> Address & Map Settings</h3>
+            <p class="text-sm text-gray-500 mb-5">Configure Google Maps integration and custom address fields for checkout.</p>
+            <div class="space-y-5">
+                <!-- Google Maps -->
+                <div class="border border-gray-100 rounded-xl p-4 space-y-4">
+                    <h4 class="text-sm font-semibold text-gray-800 flex items-center gap-2"><i data-lucide="navigation" class="w-4 h-4 text-amber-500"></i> Google Maps Integration</h4>
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                            <label class="text-sm font-medium text-gray-700">Enable Google Maps</label>
+                            <p class="text-xs text-gray-400">Show a map picker on the checkout shipping form</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" name="google_maps_enabled" value="1" <?= ($settings['google_maps_enabled'] ?? '') === '1' ? 'checked' : '' ?> class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-amber-100 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                        </label>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Google Maps API Key</label>
+                        <div class="flex gap-3">
+                            <input type="text" name="google_maps_api_key" value="<?= e($settings['google_maps_api_key'] ?? '') ?>" placeholder="Enter your Google Maps API Key" class="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm font-mono">
+                            <button type="button" onclick="const i=this.previousElementSibling;i.type=i.type==='password'?'text':'password'" class="px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors" title="Toggle visibility">
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-400">Requires Places Library. Get a key from <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-amber-600 hover:underline">Google Cloud Console</a>.</p>
+                    </div>
+                </div>
+
+                <!-- Custom Address Fields -->
+                <div class="border border-gray-100 rounded-xl p-4 space-y-4">
+                    <h4 class="text-sm font-semibold text-gray-800 flex items-center gap-2"><i data-lucide="list-checks" class="w-4 h-4 text-amber-500"></i> Custom Address Fields</h4>
+                    <p class="text-xs text-gray-400">Enable additional address fields on the checkout shipping form. All disabled by default.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <?php
+                        $addressFieldDefs = [
+                            'address_field_receiver_name' => ['label' => 'Receiver Name', 'desc' => 'Different from account name'],
+                            'address_field_apartment' => ['label' => 'Apartment / Building Name', 'desc' => 'Building, complex, or apartment'],
+                            'address_field_street' => ['label' => 'Street Name', 'desc' => 'Street or road name'],
+                            'address_field_house_no' => ['label' => 'House / Unit Number', 'desc' => 'House, flat, or unit number'],
+                            'address_field_landmark' => ['label' => 'Landmark / Nearby Place', 'desc' => 'Nearby landmark or point of interest'],
+                            'address_field_delivery_instructions' => ['label' => 'Additional Delivery Instructions', 'desc' => 'Special instructions for the delivery person'],
+                        ];
+                        foreach ($addressFieldDefs as $key => $def): ?>
+                        <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                            <div>
+                                <span class="text-sm font-medium text-gray-700 block"><?= $def['label'] ?></span>
+                                <span class="text-xs text-gray-400"><?= $def['desc'] ?></span>
+                            </div>
+                            <input type="checkbox" name="<?= $key ?>" value="1" <?= ($settings[$key] ?? '') === '1' ? 'checked' : '' ?> class="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500 shrink-0 ml-3">
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Notifications -->
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
             <h3 class="font-medium mb-4 flex items-center gap-2"><i data-lucide="bell" class="w-5 h-5 text-amber-600"></i> Notifications</h3>

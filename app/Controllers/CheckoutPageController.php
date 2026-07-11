@@ -10,6 +10,36 @@
 class CheckoutPageController extends BaseController
 {
     /**
+     * Shared helper: Build a comprehensive address string from shipping data.
+     */
+    protected function buildAddressString(array $shipping): string
+    {
+        $parts = [];
+        if (!empty($shipping['receiver_name'])) {
+            $parts[] = 'Receiver: ' . $shipping['receiver_name'];
+        }
+        if (!empty($shipping['apartment'])) {
+            $parts[] = $shipping['apartment'];
+        }
+        if (!empty($shipping['house_no'])) {
+            $parts[] = $shipping['house_no'];
+        }
+        if (!empty($shipping['street'])) {
+            $parts[] = $shipping['street'];
+        }
+        if (!empty($shipping['address'])) {
+            $parts[] = $shipping['address'];
+        }
+        if (!empty($shipping['landmark'])) {
+            $parts[] = 'Near: ' . $shipping['landmark'];
+        }
+        if (!empty($shipping['city'])) {
+            $parts[] = $shipping['city'];
+        }
+        return implode(", ", $parts);
+    }
+
+    /**
      * Shared helper: Load cart items and compute checkout summary.
      *
      * Returns [cartItems, subtotal, totalItems, tax, total, couponDiscount, shippingCost].
@@ -143,8 +173,10 @@ class CheckoutPageController extends BaseController
             'customer_name' => $shipping['name'] ?? Auth::user()['name'],
             'customer_email' => $shipping['email'] ?? Auth::user()['email'],
             'customer_phone' => $shipping['phone'] ?? Auth::user()['phone'] ?? '',
-            'customer_address' => ($shipping['address'] ?? '') . ($shipping['city'] ? ', ' . $shipping['city'] : ''),
-            'notes' => $shipping['notes'] ?? '',
+            'customer_address' => $this->buildAddressString($shipping),
+            'shipping_latitude' => $shipping['map_latitude'] ?? '',
+            'shipping_longitude' => $shipping['map_longitude'] ?? '',
+            'notes' => trim(($shipping['notes'] ?? '') . ($shipping['delivery_instructions'] ?? '' ? "\n---\nDelivery Instructions: " . $shipping['delivery_instructions'] : '')),
             'status' => 'pending',
             'payment_method' => $paymentMethod,
             'payment_status' => 'pending',
@@ -248,6 +280,14 @@ class CheckoutPageController extends BaseController
             'city'    => Request::post('city', ''),
             'address' => Request::post('address', ''),
             'notes'   => Request::post('notes', ''),
+            'receiver_name' => Request::post('receiver_name', ''),
+            'apartment' => Request::post('apartment', ''),
+            'street' => Request::post('street', ''),
+            'house_no' => Request::post('house_no', ''),
+            'landmark' => Request::post('landmark', ''),
+            'delivery_instructions' => Request::post('delivery_instructions', ''),
+            'map_latitude' => Request::post('map_latitude', ''),
+            'map_longitude' => Request::post('map_longitude', ''),
         ];
         Session::set('checkout_shipping', $shipping);
         Redirect::to('/checkout/payment');
@@ -343,8 +383,10 @@ class CheckoutPageController extends BaseController
             'customer_name' => $shipping['name'] ?? Auth::user()['name'],
             'customer_email' => $shipping['email'] ?? Auth::user()['email'],
             'customer_phone' => $shipping['phone'] ?? Auth::user()['phone'] ?? '',
-            'customer_address' => ($shipping['address'] ?? '') . ($shipping['city'] ? ', ' . $shipping['city'] : ''),
-            'notes' => $shipping['notes'] ?? '',
+            'customer_address' => $this->buildAddressString($shipping),
+            'shipping_latitude' => $shipping['map_latitude'] ?? '',
+            'shipping_longitude' => $shipping['map_longitude'] ?? '',
+            'notes' => trim(($shipping['notes'] ?? '') . ($shipping['delivery_instructions'] ?? '' ? "\n---\nDelivery Instructions: " . $shipping['delivery_instructions'] : '')),
             'status' => 'pending',
             'payment_method' => $shipping['payment_method'] ?? 'mpesa',
             'payment_status' => 'pending',

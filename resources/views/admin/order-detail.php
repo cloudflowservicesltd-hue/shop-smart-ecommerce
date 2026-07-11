@@ -221,7 +221,17 @@ $currentPaymentStatus = $order['payment_status'] ?? 'pending';
                     <?php if (!empty($order['customer_address'])): ?>
                     <div class="flex items-start gap-2.5 text-sm">
                         <i data-lucide="map-pin" class="w-4 h-4 text-gray-400 shrink-0 mt-0.5"></i>
-                        <p class="text-gray-700"><?= nl2br(e($order['customer_address'])) ?></p>
+                        <p class="text-gray-700 whitespace-pre-line"><?= e($order['customer_address']) ?></p>
+                    </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($order['shipping_latitude']) && !empty($order['shipping_longitude'])): ?>
+                    <div class="flex items-center gap-2.5 text-sm">
+                        <i data-lucide="navigation" class="w-4 h-4 text-gray-400 shrink-0"></i>
+                        <a href="https://www.google.com/maps?q=<?= e($order['shipping_latitude']) ?>,<?= e($order['shipping_longitude']) ?>" target="_blank" class="text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1.5">
+                            <span class="font-mono text-xs text-gray-500"><?= e($order['shipping_latitude']) ?>, <?= e($order['shipping_longitude']) ?></span>
+                            <i data-lucide="external-link" class="w-3 h-3"></i> View on Map
+                        </a>
                     </div>
                     <?php endif; ?>
                 </div>
