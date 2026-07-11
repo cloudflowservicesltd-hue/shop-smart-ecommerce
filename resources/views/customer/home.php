@@ -27,7 +27,7 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
 
 <!-- ==================== HERO SLIDER ==================== -->
 <?php if (!empty($heroSlides)): ?>
-<section id="heroSection" class="relative w-full overflow-hidden" style="height: clamp(420px, 56vh, 620px);">
+<section id="heroSection" class="relative w-full overflow-hidden" style="height: clamp(500px, 70vh, 780px);">
     <!-- Slides Container -->
     <div id="heroSlider" class="relative w-full h-full">
         <?php foreach ($heroSlides as $index => $slide): ?>
@@ -125,7 +125,7 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
 
 <!-- ==================== CATEGORIES ==================== -->
 <?php if ($showCategories && !empty($categories)): ?>
-<section class="py-12 md:py-16 bg-stone-50 overflow-hidden">
+<section class="pt-8 pb-12 md:pt-12 md:pb-16 bg-stone-50 overflow-hidden">
     <div class="w-full px-4 sm:px-6 lg:px-0">
         <div class="flex items-center justify-between mb-8 px-4 sm:px-6 lg:px-8">
             <div>
@@ -196,7 +196,7 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
 
 <!-- ==================== FEATURED PRODUCTS ==================== -->
 <?php if ($showFeatured && !empty($featuredProducts)): ?>
-<section class="py-12 md:py-16">
+<section class="pt-8 pb-12 md:pt-12 md:pb-16">
     <div class="w-full px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between mb-8">
             <div>
