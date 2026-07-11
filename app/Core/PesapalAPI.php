@@ -34,10 +34,12 @@ class PesapalAPI
 
     public static function getConsumerKey(): string
     {
+        // New key names from admin settings page, fallback to legacy keys
         $key = self::readSetting('pesapal_consumer_key');
         if (empty($key)) {
             $key = self::readSetting('pesapal_key');
         }
+        // Fallback to .env
         if (empty($key)) {
             $key = env('PESAPAL_CONSUMER_KEY') ?: '';
         }
@@ -58,10 +60,12 @@ class PesapalAPI
 
     public static function isTestMode(): bool
     {
+        // Check pesapal_test_mode (1 = test mode, 0 = production)
         $testMode = self::readSetting('pesapal_test_mode');
         if ($testMode !== '') {
             return $testMode === '1';
         }
+        // Fallback to pesapal_env
         $env = self::readSetting('pesapal_env');
         return ($env ?: 'sandbox') !== 'production';
     }
@@ -124,31 +128,10 @@ class PesapalAPI
         curl_close($ch);
 
         if ($error) {
-            self::log('curl_error', ['url' => $url, 'error' => $error]);
             return ['success' => false, 'error' => 'cURL error: ' . $error, 'http_code' => 0];
         }
 
-        // Log the raw response for debugging
-        self::log('api_response', [
-            'url'       => $url,
-            'http_code' => $httpCode,
-            'response'  => substr($response ?? '', 0, 2000),
-        ]);
-
         $decoded = json_decode($response, true);
-
-        // If JSON decode failed, the response might be HTML or malformed
-        if ($decoded === null && !empty($response)) {
-            self::log('json_decode_failed', ['url' => $url, 'raw_response' => substr($response, 0, 500)]);
-            return [
-                'success'   => false,
-                'error'     => 'Invalid JSON response from Pesapal. The server may have returned an error page.',
-                'http_code' => $httpCode,
-                'data'      => null,
-                'raw'       => $response,
-            ];
-        }
-
         return [
             'success'   => $httpCode >= 200 && $httpCode < 300,
             'http_code' => $httpCode,
@@ -183,24 +166,7 @@ class PesapalAPI
             return ['success' => false, 'error' => 'cURL error: ' . $error, 'http_code' => 0];
         }
 
-        self::log('api_response', [
-            'url'       => $url,
-            'http_code' => $httpCode,
-            'response'  => substr($response ?? '', 0, 2000),
-        ]);
-
         $decoded = json_decode($response, true);
-
-        if ($decoded === null && !empty($response)) {
-            return [
-                'success'   => false,
-                'error'     => 'Invalid JSON response from Pesapal.',
-                'http_code' => $httpCode,
-                'data'      => null,
-                'raw'       => $response,
-            ];
-        }
-
         return [
             'success'   => $httpCode >= 200 && $httpCode < 300,
             'http_code' => $httpCode,
@@ -223,86 +189,31 @@ class PesapalAPI
         $consumerKey    = self::getConsumerKey();
         $consumerSecret = self::getConsumerSecret();
         $baseUrl        = self::getBaseUrl();
-        $authUrl        = $baseUrl . '/api/Auth/RequestToken';
 
         if (empty($consumerKey) || empty($consumerSecret)) {
-            return ['success' => false, 'token' => '', 'error' => 'Consumer key and secret are required', 'http_code' => 0];
+            return ['success' => false, 'token' => '', 'error' => 'Consumer key and secret are required'];
         }
 
-        self::log('auth_request', [
-            'url'          => $authUrl,
-            'has_key'      => !empty($consumerKey),
-            'has_secret'   => !empty($consumerSecret),
-            'test_mode'    => self::isTestMode(),
-        ]);
-
-        // Pesapal v3 sends credentials in the request body as JSON
-        $result = self::curlPost($authUrl, [
+        // Pesapal v3 sends credentials in the request body
+        $result = self::curlPost($baseUrl . '/api/Auth/RequestToken', [
             'consumer_key'    => $consumerKey,
             'consumer_secret' => $consumerSecret,
         ]);
 
-        // If the request itself failed (cURL error, non-2xx)
         if (!$result['success']) {
-            $httpCode = $result['http_code'];
-            $rawResp = $result['raw'] ?? '';
-
-            // Try to extract error message from response body
-            $errDetail = '';
-            if (!empty($rawResp)) {
-                $errData = json_decode($rawResp, true);
-                if ($errData) {
-                    // Pesapal may return: {"error":"...","error_description":"..."}
-                    $errDetail = $errData['error_description'] ?? $errData['error'] ?? $errData['message'] ?? '';
-                }
-            }
-
-            if (empty($errDetail)) {
-                $errDetail = $result['error'] ?? 'HTTP ' . $httpCode;
-            }
-
-            // Special handling for common HTTP errors
-            if ($httpCode === 0) {
-                return ['success' => false, 'token' => '', 'error' => 'Could not connect to Pesapal. Check your server\'s firewall/outbound rules. Error: ' . $errDetail, 'http_code' => $httpCode];
-            }
-            if ($httpCode === 401) {
-                return ['success' => false, 'token' => '', 'error' => 'Invalid consumer key or secret. Double-check your credentials in the Pesapal Developer Portal.', 'http_code' => $httpCode];
-            }
-            if ($httpCode === 400) {
-                return ['success' => false, 'token' => '', 'error' => 'Bad request: ' . $errDetail, 'http_code' => $httpCode];
-            }
-
-            return ['success' => false, 'token' => '', 'error' => $errDetail, 'http_code' => $httpCode];
+            $errMsg = $result['data']['error']['message'] ?? ($result['error'] ?? 'Authentication failed');
+            return ['success' => false, 'token' => '', 'error' => $errMsg, 'http_code' => $result['http_code']];
         }
 
-        // Request succeeded (2xx) — extract token
-        $data = $result['data'] ?? [];
-
-        // Pesapal v3 returns: {"token":"eyJ...","expiryDate":"2024-..."}
-        // But also check for alternative field names just in case
-        $token = $data['token'] ?? $data['access_token'] ?? $data['Token'] ?? '';
-
+        $token = $result['data']['token'] ?? '';
         if (empty($token)) {
-            // Log the full response for debugging
-            self::log('auth_no_token', [
-                'http_code'  => $result['http_code'],
-                'response'   => $result['raw'] ?? '',
-                'data_keys'  => is_array($data) ? array_keys($data) : 'not-array',
-            ]);
-
-            $respSnippet = substr($result['raw'] ?? 'empty response', 0, 300);
-            return [
-                'success'   => false,
-                'token'     => '',
-                'error'     => 'No token in response. Pesapal returned HTTP ' . $result['http_code'] . ' but the response body does not contain a token. Response: ' . $respSnippet,
-                'http_code' => $result['http_code'],
-            ];
+            return ['success' => false, 'token' => '', 'error' => 'No token in response', 'http_code' => $result['http_code']];
         }
 
         return [
             'success'   => true,
             'token'     => $token,
-            'expires'   => $data['expiryDate'] ?? $data['expires'] ?? '',
+            'expires'   => $result['data']['expiryDate'] ?? '',
             'http_code' => $result['http_code'],
         ];
     }
@@ -328,19 +239,13 @@ class PesapalAPI
         ], $auth['token']);
 
         if (!$result['success']) {
-            $errMsg = '';
-            if (is_array($result['data'] ?? null)) {
-                $errMsg = $result['data']['error']['message'] ?? ($result['data']['message'] ?? '');
-            }
-            if (empty($errMsg)) {
-                $errMsg = $result['error'] ?? 'IPN registration failed';
-            }
+            $errMsg = $result['data']['error']['message'] ?? ($result['error'] ?? 'IPN registration failed');
             return ['success' => false, 'ipn_id' => '', 'error' => $errMsg, 'http_code' => $result['http_code']];
         }
 
         $ipnId = $result['data']['ipn_id'] ?? '';
         if (empty($ipnId)) {
-            return ['success' => false, 'ipn_id' => '', 'error' => 'No ipn_id in response. Response: ' . substr($result['raw'] ?? '', 0, 300), 'http_code' => $result['http_code']];
+            return ['success' => false, 'ipn_id' => '', 'error' => 'No ipn_id in response', 'http_code' => $result['http_code']];
         }
 
         // Save the IPN ID to settings for later use
@@ -418,13 +323,7 @@ class PesapalAPI
         $result = self::curlPost($baseUrl . '/api/Transactions/SubmitOrderRequest', $payload, $auth['token']);
 
         if (!$result['success']) {
-            $errMsg = '';
-            if (is_array($result['data'] ?? null)) {
-                $errMsg = $result['data']['error']['message'] ?? ($result['data']['message'] ?? '');
-            }
-            if (empty($errMsg)) {
-                $errMsg = $result['error'] ?? 'Order submission failed';
-            }
+            $errMsg = $result['data']['error']['message'] ?? ($result['error'] ?? 'Order submission failed');
             return ['success' => false, 'redirect_url' => '', 'tracking_id' => '', 'error' => $errMsg, 'http_code' => $result['http_code']];
         }
 
@@ -432,13 +331,7 @@ class PesapalAPI
         $trackingId  = $result['data']['order_tracking_id'] ?? '';
 
         if (empty($redirectUrl)) {
-            $errMsg = '';
-            if (is_array($result['data'] ?? null)) {
-                $errMsg = $result['data']['error']['message'] ?? '';
-            }
-            if (empty($errMsg)) {
-                $errMsg = json_encode($result['data']);
-            }
+            $errMsg = $result['data']['error']['message'] ?? json_encode($result['data']);
             return ['success' => false, 'redirect_url' => '', 'tracking_id' => '', 'error' => 'No redirect URL: ' . $errMsg];
         }
 
@@ -480,7 +373,7 @@ class PesapalAPI
             'payment_method'     => $data['payment_method'] ?? '',
             'tracking_id'        => $data['order_tracking_id'] ?? $trackingId,
             'merchant_reference' => $data['order_merchant_reference'] ?? '',
-            'amount'             => $data['amount'] ?? 0,
+            'amount'             => $data['amount' ] ?? 0,
             'currency'           => $data['currency'] ?? '',
             'raw'                => $data,
         ];
@@ -538,7 +431,7 @@ class PesapalAPI
             return ['success' => true, 'message' => "Connection successful! ({$env}) Token expires: " . ($result['expires'] ?? 'N/A')];
         }
 
-        return ['success' => false, 'message' => $result['error'] ?? 'Connection failed'];
+        return ['success' => false, 'message' => 'Connection failed: ' . $result['error']];
     }
 
     // -----------------------------------------------------------------------
@@ -562,22 +455,6 @@ class PesapalAPI
             }
         } catch (\Throwable $e) {
             // Silently fail
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // Logging
-    // -----------------------------------------------------------------------
-
-    private static function log(string $event, array $data = []): void
-    {
-        try {
-            $logDir = ROOT_PATH . '/logs';
-            if (!is_dir($logDir)) mkdir($logDir, 0755, true);
-            $logEntry = date('Y-m-d H:i:s') . " [Pesapal][{$event}] " . json_encode($data, JSON_UNESCAPED_SLASHES) . "\n";
-            file_put_contents($logDir . '/pesapal.log', $logEntry, FILE_APPEND);
-        } catch (\Throwable $e) {
-            // Silent fail for logging
         }
     }
 }

@@ -193,19 +193,19 @@
         <!-- IntaSend Payment Gateway -->
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
             <h3 class="font-medium mb-4 flex items-center gap-2"><i data-lucide="zap" class="w-5 h-5 text-amber-600"></i> IntaSend Payment Gateway</h3>
-            <p class="text-sm text-gray-500 mb-4">Accept M-Pesa, card payments, and bank transfers via IntaSend. <span class="text-red-500 font-medium">Both keys are required.</span></p>
+            <p class="text-sm text-gray-500 mb-4">Accept M-Pesa, card payments, and bank transfers via IntaSend. Requires an IntaSend account.</p>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Publishable Key <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Publishable Key</label>
                     <div class="flex gap-3">
                         <input type="text" name="intasend_publishable_key" value="<?= e($settings['intasend_publishable_key'] ?? '') ?>" placeholder="ISPubKey_xxxxxxxxxxxx" class="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm font-mono">
                     </div>
                     <p class="mt-1 text-xs text-gray-400">Get your publishable key from <a href="https://app.intasend.com" target="_blank" class="text-amber-600 hover:underline">app.intasend.com</a> → Settings → API Keys</p>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Secret Key <span class="text-red-500">*</span> <span class="text-xs text-gray-400 font-normal">(required for checkout)</span></label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Secret Key <span class="text-xs text-gray-400">(for direct API fallback)</span></label>
                     <div class="flex gap-3">
-                        <input type="password" name="intasend_secret" value="<?= e($settings['intasend_secret'] ?? '') ?>" placeholder="ISSecretKey_xxxxxxxxxxxx" class="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm font-mono">
+                        <input type="password" name="intasend_secret" value="<?= e($settings['intasend_secret'] ?? '') ?>" placeholder="Enter your IntaSend secret key" class="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm font-mono">
                         <button type="button" onclick="const i=this.previousElementSibling;i.type=i.type==='password'?'text':'password'" class="px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors" title="Toggle visibility">
                             <i data-lucide="eye" class="w-4 h-4"></i>
                         </button>
@@ -215,48 +215,13 @@
                     <label class="flex items-center gap-3 cursor-pointer p-3 bg-gray-50 rounded-lg">
                         <input type="checkbox" name="intasend_test_mode" value="1" <?= ($settings['intasend_test_mode'] ?? '1') === '1' ? 'checked' : '' ?> class="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500">
                         <div>
-                            <span class="text-sm font-medium text-gray-900">Test Mode (Sandbox)</span>
-                            <p class="text-xs text-gray-500">Use IntaSend sandbox for testing. Uncheck for live payments. Keys must match the environment.</p>
+                            <span class="text-sm font-medium text-gray-900">Test Mode</span>
+                            <p class="text-xs text-gray-500">Use IntaSend sandbox for testing. Uncheck for live payments.</p>
                         </div>
                     </label>
                 </div>
-                <div class="flex items-center gap-3 pt-2">
-                    <button type="button" onclick="testIntaSendConnection()" id="intasendTestBtn" class="inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
-                        <i data-lucide="zap" class="w-4 h-4"></i> Test Connection
-                    </button>
-                    <span id="intasendTestResult" class="text-sm"></span>
-                </div>
-                <script>
-                function testIntaSendConnection() {
-                    const btn = document.getElementById('intasendTestBtn');
-                    const result = document.getElementById('intasendTestResult');
-                    btn.disabled = true;
-                    btn.innerHTML = '<svg class="animate-spin w-4 h-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Testing...';
-                    result.textContent = '';
-                    const form = btn.closest('form');
-                    const fd = new FormData(form);
-                    fetch('/admin/settings/intasend-test', { method: 'POST', body: fd })
-                        .then(r => r.json())
-                        .then(data => {
-                            btn.disabled = false;
-                            btn.innerHTML = '<i data-lucide="zap" class="w-4 h-4"></i> Test Connection';
-                            lucide.createIcons();
-                            if (data.success) {
-                                result.innerHTML = '<span class="text-green-600">✅ ' + (data.message || 'Connection successful') + '</span>';
-                            } else {
-                                result.innerHTML = '<span class="text-red-600">❌ ' + (data.error || data.message || 'Connection failed') + '</span>';
-                            }
-                        })
-                        .catch(() => {
-                            btn.disabled = false;
-                            btn.innerHTML = '<i data-lucide="zap" class="w-4 h-4"></i> Test Connection';
-                            lucide.createIcons();
-                            result.innerHTML = '<span class="text-red-600">❌ Request failed</span>';
-                        });
-                }
-                </script>
                 <div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                    <p class="text-xs text-blue-700"><i data-lucide="info" class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5"></i> <strong>Setup:</strong> 1) Create an account at <a href="https://intasend.com" target="_blank" class="underline">intasend.com</a>. 2) Get <strong>both</strong> API keys (Publishable + Secret). 3) Set the callback/redirect URL to <code class="bg-blue-100 px-1 py-0.5 rounded text-[11px]">/payment/intasend/callback</code>. 4) Enable IntaSend in Payment Settings. 5) <strong>Keys must match the environment</strong> — sandbox keys for test mode, live keys for production.</p>
+                    <p class="text-xs text-blue-700"><i data-lucide="info" class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5"></i> <strong>Setup:</strong> 1) Create an account at <a href="https://intasend.com" target="_blank" class="underline">intasend.com</a>. 2) Get your API keys. 3) Set the callback/redirect URL to <code class="bg-blue-100 px-1 py-0.5 rounded text-[11px]">/payment/intasend/callback</code>. 4) Enable IntaSend in Payment Settings.</p>
                 </div>
             </div>
         </div>
@@ -335,15 +300,15 @@
         <!-- Pesapal Payment Gateway -->
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
             <h3 class="font-medium mb-4 flex items-center gap-2"><i data-lucide="wallet" class="w-5 h-5 text-orange-500"></i> Pesapal Payment Gateway</h3>
-            <p class="text-sm text-gray-500 mb-4">Accept M-Pesa, Airtel Money, Visa, Mastercard and more via <a href="https://www.pesapal.com" target="_blank" class="text-amber-600 hover:underline">Pesapal</a>. <span class="text-red-500 font-medium">Both credentials are required.</span></p>
+            <p class="text-xs text-gray-400 mb-4">Accept M-Pesa, Airtel Money, Visa, Mastercard and more via <a href="https://www.pesapal.com" target="_blank" class="text-amber-600 hover:underline">Pesapal</a>. Supports Kenya, Uganda, Tanzania, Rwanda, and more.</p>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Consumer Key <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Consumer Key</label>
                     <input type="text" name="pesapal_consumer_key" value="<?= e($settings['pesapal_consumer_key'] ?? '') ?>" placeholder="Enter Pesapal consumer key" class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm font-mono">
                     <p class="mt-1 text-xs text-gray-400">From <a href="https://developer.pesapal.com" target="_blank" class="text-amber-600 hover:underline">Pesapal Developer Portal</a></p>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Consumer Secret <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Consumer Secret</label>
                     <div class="flex gap-3">
                         <input type="password" name="pesapal_consumer_secret" value="<?= e($settings['pesapal_consumer_secret'] ?? '') ?>" placeholder="Enter consumer secret" class="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm font-mono">
                         <button type="button" onclick="const i=this.previousElementSibling;i.type=i.type==='password'?'text':'password'" class="px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors" title="Toggle visibility">
@@ -353,13 +318,16 @@
                 </div>
                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div>
-                        <label class="text-sm font-medium text-gray-700">Test Mode (Sandbox)</label>
-                        <p class="text-xs text-gray-400">Use sandbox for testing, uncheck for live. Credentials must match the environment.</p>
+                        <label class="text-sm font-medium text-gray-700">Test Mode</label>
+                        <p class="text-xs text-gray-400">Use sandbox for testing, uncheck for live payments</p>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" name="pesapal_test_mode" value="1" <?= (isset($settings['pesapal_test_mode']) && $settings['pesapal_test_mode'] === '1') || (!isset($settings['pesapal_test_mode']) && ($settings['pesapal_env'] ?? 'sandbox') === 'sandbox') ? 'checked' : '' ?> class="sr-only peer">
                         <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-100 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
                     </label>
+                </div>
+                <div class="bg-orange-50 border border-orange-100 rounded-lg p-3">
+                    <p class="text-xs text-orange-800"><i data-lucide="info" class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5"></i> <strong>Tip:</strong> After saving, go to <a href="/admin/payments/settings" class="text-amber-600 hover:underline font-medium">Payment Settings</a> to enable/disable Pesapal and manage the IPN ID. You can also register your IPN URL via the Pesapal <a href="https://developer.pesapal.com" target="_blank" class="text-amber-600 hover:underline">dashboard</a>.</p>
                 </div>
                 <div class="flex items-center gap-3 pt-2">
                     <button type="button" onclick="testPesapalConnection()" id="pesapalTestBtn" class="inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
@@ -374,6 +342,7 @@
                     btn.disabled = true;
                     btn.innerHTML = '<svg class="animate-spin w-4 h-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Testing...';
                     result.textContent = '';
+                    // Save settings first, then test
                     const form = btn.closest('form');
                     const fd = new FormData(form);
                     fetch('/admin/settings/pesapal-test', { method: 'POST', body: fd })
@@ -396,9 +365,6 @@
                         });
                 }
                 </script>
-                <div class="bg-orange-50 border border-orange-100 rounded-lg p-3">
-                    <p class="text-xs text-orange-800"><i data-lucide="info" class="w-3.5 h-3.5 inline-block mr-1 -mt-0.5"></i> <strong>Setup:</strong> 1) Get credentials from <a href="https://developer.pesapal.com" target="_blank" class="text-amber-600 hover:underline">Pesapal Developer Portal</a>. 2) <strong>Credentials must match the environment</strong> — sandbox keys for test mode, live keys for production. 3) The IPN URL is auto-registered when the first payment is made. 4) Enable Pesapal in <a href="/admin/payments/settings" class="text-amber-600 hover:underline font-medium">Payment Settings</a>.</p>
-                </div>
             </div>
         </div>
 

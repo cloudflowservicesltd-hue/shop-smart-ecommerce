@@ -73,15 +73,12 @@ class Mailer
     private static function sendViaSMTP(string $to, string $subject, string $body, bool $isHtml, ?string $replyTo, array $config): bool
     {
         try {
-            // Enrich email body to avoid spam filters (adds HTML wrapper, headers, footer)
-            $enrichedBody = self::enrichEmailBody($body, $isHtml);
-
             $mail = self::getInstance();
             $mail->addAddress($to);
             $mail->Subject = $subject;
-            $mail->Body    = $enrichedBody;
+            $mail->Body    = $body;
             $mail->isHTML($isHtml);
-            $mail->AltBody = self::htmlToText($enrichedBody);
+            $mail->AltBody = self::htmlToText($body);
 
             if ($replyTo) {
                 $mail->addReplyTo($replyTo);
@@ -119,16 +116,12 @@ class Mailer
             $fromEmail = $smtpUser;
         }
 
-        // Enrich email body to avoid spam filters
-        $body = self::enrichEmailBody($body, $isHtml);
-
         // Build headers
         $headers = [];
         $headers[] = "From: $fromName <$fromEmail>";
         $headers[] = "MIME-Version: 1.0";
         $headers[] = "Content-Type: " . ($isHtml ? 'text/html; charset=UTF-8' : 'text/plain; charset=UTF-8');
         $headers[] = "X-Mailer: ShopSmart E-Commerce";
-        $headers[] = "X-Priority: 3";
 
         if ($replyTo) {
             $headers[] = "Reply-To: $replyTo";
@@ -187,12 +180,11 @@ class Mailer
             if ($useSmtp) {
                 // ── SMTP batch ──
                 try {
-                    $enrichedBody = self::enrichEmailBody($body, $isHtml);
                     $mail = self::getInstance();
                     $mail->Subject = $subject;
-                    $mail->Body    = $enrichedBody;
+                    $mail->Body    = $body;
                     $mail->isHTML($isHtml);
-                    $mail->AltBody = self::htmlToText($enrichedBody);
+                    $mail->AltBody = self::htmlToText($body);
 
                     foreach ($validEmails as $email) {
                         $mail->addBCC($email);
@@ -312,8 +304,7 @@ class Mailer
         if (!$hasSmtpConfig) {
             // No SMTP — test mail() directly
             if ($toEmail && filter_var($toEmail, FILTER_VALIDATE_EMAIL) && !$mailDisabled) {
-                $testBody = '<p>This is a test email from ShopSmart via PHP mail().</p><p>Your email configuration is working correctly.</p><p>This message was sent automatically to verify that your store can send transactional emails such as order confirmations, password resets, and notifications.</p>';
-                $sent = self::sendViaMailFunction($toEmail, 'ShopSmart Test (mail())', $testBody, true, null, $config);
+                $sent = self::sendViaMailFunction($toEmail, 'ShopSmart Test (mail())', '<p>This is a test email from ShopSmart via PHP mail().</p>', true, null, $config);
                 $result['success'] = $sent;
                 $result['method']  = 'mail';
                 $result['checks'][] = [
@@ -409,7 +400,7 @@ class Mailer
                 if ($toEmail && filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
                     $mail->addAddress($toEmail);
                     $mail->Subject = 'ShopSmart SMTP Test';
-                    $mail->Body    = '<p>This is a test email from ShopSmart to verify your SMTP configuration is working.</p><p>Your store can successfully send transactional emails such as order confirmations, password resets, and customer notifications.</p><p>If you received this email, your email settings are correctly configured.</p>';
+                    $mail->Body    = '<p>This is a test email from ShopSmart to verify your SMTP configuration is working.</p>';
                     $mail->isHTML(true);
                     $mail->AltBody = 'This is a test email from ShopSmart to verify your SMTP configuration is working.';
 
@@ -465,7 +456,7 @@ class Mailer
 
         // ── If SMTP failed, auto-test mail() fallback ──
         if (!$result['success'] && !$mailDisabled && $toEmail && filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
-            $mailSent = self::sendViaMailFunction($toEmail, 'ShopSmart Test (mail() fallback)', '<p>This is a test email from ShopSmart sent via PHP mail() as a fallback.</p><p>Your email configuration is working.</p>', true, null, $config);
+            $mailSent = self::sendViaMailFunction($toEmail, 'ShopSmart Test (mail() fallback)', '<p>This is a test email from ShopSmart sent via PHP mail() because SMTP is unavailable on your server.</p>', true, null, $config);
             if ($mailSent) {
                 $result['checks'][] = [
                     'name'    => 'PHP mail() Fallback',
@@ -601,14 +592,7 @@ class Mailer
 
         // Anti-spam: set proper X-Mailer and Message-ID
         $mail->XMailer  = 'ShopSmart E-Commerce';
-        $host = $_SERVER['HTTP_HOST'] ?? 'shopsmart.co.ke';
-        $mail->MessageID = '<' . md5(uniqid(microtime(true), true)) . '@' . $host . '>';
-
-        // Additional anti-spam headers
-        $mail->addCustomHeader('X-Priority', '3'); // Normal priority
-        $mail->addCustomHeader('X-MS-Priority', 'Normal');
-        $mail->addCustomHeader('X-Mailer-MIME', 'PHP/' . PHP_VERSION);
-        $mail->addCustomHeader('MIME-Version', '1.0');
+        $mail->MessageID = '<' . md5(uniqid(microtime(true), true)) . '@' . ($_SERVER['HTTP_HOST'] ?? 'shopsmart.co.ke') . '>';
 
         // Disable SSL peer verification (shared hosting friendly)
         $mail->SMTPOptions = [
@@ -682,35 +666,6 @@ class Mailer
             'from_email' => !empty($db['mail_from_email']) ? $db['mail_from_email'] : $mc['from_email'],
         ];
         return $cached;
-    }
-
-    /**
-     * Enrich the email body to avoid spam filters.
-     * Adds a proper HTML wrapper with headers, footers, and unsubscribe info.
-     * This helps bypass hosting spam filters that reject minimal/short emails.
-     */
-    private static function enrichEmailBody(string $body, bool $isHtml): string
-    {
-        if (!$isHtml) {
-            // For plain text, append a footer if the body is very short
-            if (strlen($body) < 200) {
-                $body .= "\n\n---\nThis email was sent by " . (self::getResolvedConfig()['from_name'] ?: 'ShopSmart') . ".\nIf you did not expect this email, please contact us.";
-            }
-            return $body;
-        }
-
-        // If the body is already a full HTML document (has <html> tag), return as-is
-        if (stripos($body, '<html') !== false) {
-            return $body;
-        }
-
-        // Wrap in a proper HTML structure with enough content to avoid spam filters
-        $storeName = htmlspecialchars(self::getResolvedConfig()['from_name'] ?: 'ShopSmart');
-        $storeUrl = 'https://' . ($_SERVER['HTTP_HOST'] ?? 'shopsmart.co.ke');
-        $storeEmail = htmlspecialchars(self::getResolvedConfig()['from_email'] ?: '');
-
-        return "<!DOCTYPE html>\n<html>\n<head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"></head>\n<body style=\"margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;\">\n<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);\">\n<tr><td style=\"background:linear-gradient(135deg,#d97706,#b45309);padding:24px 32px;\">\n<h1 style=\"margin:0;color:#ffffff;font-size:22px;font-weight:600;\">{$storeName}</h1>\n</td></tr>\n<tr><td style=\"padding:32px;\">\n{$body}
-</td></tr>\n<tr><td style=\"background:#f3f4f6;padding:20px 32px;text-align:center;\">\n<p style=\"margin:0;color:#6b7280;font-size:13px;\">&copy; " . date('Y') . " {$storeName}. All rights reserved.</p>\n" . ($storeEmail ? "<p style=\"margin:4px 0 0;color:#9ca3af;font-size:12px;\">Contact: <a href=\"mailto:{$storeEmail}\" style=\"color:#d97706;\">{$storeEmail}</a></p>\n" : '') . "<p style=\"margin:4px 0 0;color:#9ca3af;font-size:11px;\">This is an automated email from {$storeName}. Please do not reply directly to this message.</p>\n</td></tr>\n</table>\n</body>\n</html>";
     }
 
     /**

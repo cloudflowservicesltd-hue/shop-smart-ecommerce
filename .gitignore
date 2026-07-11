@@ -33,20 +33,6 @@ worklog.md
 *.tiff
 *.tif
 
-# BUT allow uploaded product/category images for the shop
-!public/uploads/
-!public/uploads/**
-!public/uploads/products/
-!public/uploads/products/**
-!public/uploads/categories/
-!public/uploads/categories/**
-!public/uploads/brands/
-!public/uploads/brands/**
-!public/uploads/settings/
-!public/uploads/settings/**
-!public/uploads/no-image.jpg
-!public/uploads/no-image-sm.jpg
-
 # Archives
 *.tar
 *.tar.gz
