@@ -19,22 +19,56 @@ $showNewArrivals = ($appearance['show_new_arrivals'] ?? '1') === '1';
 $showPromoBanners = ($appearance['show_promo_banners'] ?? '1') === '1';
 $showTrustBadges = ($appearance['show_trust_badges'] ?? '1') === '1';
 $showNewsletter = ($appearance['show_newsletter'] ?? '1') === '1';
-
-// Category circle size from settings (px), min 48, max 320
-$catCircleSize = (int)(Database::selectOne("SELECT value FROM settings WHERE `key` = 'category_circle_size'")['value'] ?? 80);
-if ($catCircleSize < 48) $catCircleSize = 48;
-if ($catCircleSize > 320) $catCircleSize = 320;
-$catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px' : ($catCircleSize < 160 ? '11px' : '13px'));
 ?>
 
-<!-- ==================== HERO SLIDER ==================== -->
+<!-- ==================== HERO + CATEGORIES WRAPPER ==================== -->
+<?php if (!empty($heroSlides) || ($showCategories && !empty($categories))): ?>
+<section class="relative w-full">
+<div class="flex flex-col lg:flex-row w-full" style="height: clamp(500px, 70vh, 780px);">
+
+<?php if ($showCategories && !empty($categories)): ?>
+<!-- Categories Left Sidebar (Desktop) -->
+<div class="hidden lg:flex flex-col w-56 xl:w-64 shrink-0 bg-white border-r border-gray-100 z-10 relative">
+    <div class="flex items-center gap-2 px-5 py-4 border-b border-gray-100 bg-gray-50">
+        <i data-lucide="grid-3x3" class="w-4 h-4 text-amber-600"></i>
+        <h2 class="font-semibold text-gray-900 text-sm">Categories</h2>
+    </div>
+    <div class="flex-1 overflow-y-auto py-2 hero-cat-list">
+        <?php foreach ($categories as $cat): ?>
+        <a href="/category/<?= e($cat['slug']) ?>" class="flex items-center gap-3 px-5 py-2.5 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors group">
+            <img src="<?= $cat['image'] ?? '/uploads/no-image-sm.jpg' ?>" alt="<?= e($cat['name']) ?>" class="w-9 h-9 rounded-lg object-cover border border-gray-100 group-hover:border-amber-300 transition-colors shrink-0">
+            <span class="truncate font-medium"><?= e($cat['name']) ?></span>
+            <i data-lucide="chevron-right" class="w-3.5 h-3.5 ml-auto text-gray-300 group-hover:text-amber-500 transition-colors shrink-0"></i>
+        </a>
+        <?php endforeach; ?>
+    </div>
+    <div class="border-t border-gray-100 px-5 py-3">
+        <a href="/categories" class="flex items-center justify-center gap-1.5 text-xs font-semibold text-amber-600 hover:text-amber-700 transition-colors">
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i> All Categories
+        </a>
+    </div>
+</div>
+
+<!-- Mobile Categories Horizontal Strip -->
+<div class="flex lg:hidden items-center gap-2 px-4 py-3 bg-white border-b border-gray-100 overflow-x-auto shrink-0 hero-cat-mobile-scroll">
+    <span class="shrink-0 text-xs font-bold text-gray-900 uppercase tracking-wider mr-1">Categories</span>
+    <?php foreach ($categories as $cat): ?>
+    <a href="/category/<?= e($cat['slug']) ?>" class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-amber-50 rounded-full text-xs font-medium text-gray-700 hover:text-amber-700 border border-gray-100 hover:border-amber-300 transition-colors">
+        <img src="<?= $cat['image'] ?? '/uploads/no-image-sm.jpg' ?>" alt="" class="w-5 h-5 rounded-full object-cover">
+        <?= e($cat['name']) ?>
+    </a>
+    <?php endforeach; ?>
+</div>
+<?php endif; ?>
+
 <?php if (!empty($heroSlides)): ?>
-<section id="heroSection" class="relative w-full overflow-hidden" style="height: clamp(500px, 70vh, 780px);">
+<!-- Hero Slider -->
+<section id="heroSection" class="relative flex-1 overflow-hidden min-h-0">
     <!-- Slides Container -->
     <div id="heroSlider" class="relative w-full h-full">
         <?php foreach ($heroSlides as $index => $slide): ?>
         <div class="hero-slide absolute inset-0 <?= $index === 0 ? 'active' : '' ?>" data-index="<?= $index ?>">
-            <!-- Background Image (covers slider) -->
+            <!-- Background Image -->
             <?php if (!empty($slide['image_url'])): ?>
             <div class="absolute inset-0">
                 <img src="<?= e($slide['image_url']) ?>" alt="<?= e($slide['title']) ?>"
@@ -59,7 +93,6 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
                 <div class="w-full px-4 sm:px-6 lg:px-8">
                     <div class="max-w-2xl <?= $slide['text_position'] === 'center' ? 'mx-auto text-center' : ($slide['text_position'] === 'right' ? 'ml-auto text-right' : '') ?>">
                         
-                        <!-- Badge / Subtitle -->
                         <?php if (!empty($slide['subtitle'])): ?>
                         <div class="slide-badge inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm text-white/90 text-sm font-medium px-4 py-1.5 rounded-full mb-5 border border-white/10">
                             <i data-lucide="sparkles" class="w-4 h-4 text-amber-300"></i>
@@ -67,19 +100,16 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
                         </div>
                         <?php endif; ?>
 
-                        <!-- Title - Floating animation -->
                         <h1 class="slide-title font-heading text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-5">
                             <?= e($slide['title']) ?>
                         </h1>
 
-                        <!-- Description - Floating animation -->
                         <?php if (!empty($slide['description'])): ?>
                         <p class="slide-subtitle text-white/80 text-base sm:text-lg md:text-xl mb-8 max-w-lg <?= $slide['text_position'] === 'center' ? 'mx-auto' : ($slide['text_position'] === 'right' ? 'ml-auto' : '') ?>">
                             <?= e($slide['description']) ?>
                         </p>
                         <?php endif; ?>
 
-                        <!-- CTA Buttons - Floating animation -->
                         <div class="slide-cta flex flex-col sm:flex-row gap-3 <?= $slide['text_position'] === 'center' ? 'justify-center' : ($slide['text_position'] === 'right' ? 'justify-end' : '') ?>">
                             <a href="<?= e($slide['cta_link']) ?>" class="inline-flex items-center justify-center gap-2 bg-white text-amber-700 font-bold px-7 py-3.5 rounded-xl hover:bg-amber-50 transition-all duration-300 shadow-lg shadow-black/20 hover:shadow-xl hover:shadow-black/30 hover:-translate-y-0.5">
                                 <i data-lucide="shopping-bag" class="w-5 h-5"></i>
@@ -117,7 +147,7 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
     <div class="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5">
         <?php foreach ($heroSlides as $i => $s): ?>
         <button onclick="heroSlider.goTo(<?= $i ?>)" 
-                class="hero-dot w-2.5 h-2.5 rounded-full transition-all duration-300 <?= $i === 0 ? 'bg-white w-8' : 'bg-white/40 hover:bg-white/60' ?>"
+                class="hero-dot w-2.5 h-2.5 rounded-full transition-all duration-300 <?= $i === 0 ? 'bg-white w-8' : 'bg-white/40 hover:bg-white/60' }}"
                 data-dot="<?= $i ?>"></button>
         <?php endforeach; ?>
     </div>
@@ -125,75 +155,8 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
 </section>
 <?php endif; ?>
 
-<!-- ==================== CATEGORIES ==================== -->
-<?php if ($showCategories && !empty($categories)): ?>
-<section class="pt-8 pb-12 md:pt-12 md:pb-16 bg-stone-50 overflow-hidden">
-    <div class="w-full px-4 sm:px-6 lg:px-0">
-        <div class="flex items-center justify-between mb-8 px-4 sm:px-6 lg:px-8">
-            <div>
-                <h2 class="font-heading text-2xl md:text-3xl font-bold text-gray-900">Shop by Category</h2>
-                <p class="text-gray-500 mt-1">Find what you're looking for</p>
-            </div>
-            <a href="/categories" class="hidden sm:inline-flex items-center gap-1 text-amber-600 hover:text-amber-700 font-medium text-sm transition-colors">
-                View All <i data-lucide="arrow-right" class="w-4 h-4"></i>
-            </a>
-        </div>
-    </div>
-    <!-- Continuous marquee slider -->
-    <div class="relative" id="catMarqueeWrap">
-        <div class="cat-marquee-track flex gap-5" id="catMarqueeTrack" style="animation: catMarqueeScroll var(--marquee-duration, 30s) linear infinite; width: max-content;">
-            <?php
-            // Render categories twice for seamless loop
-            $allCats = array_merge($categories, $categories);
-            foreach ($allCats as $cat):
-            ?>
-            <a href="/category/<?= e($cat['slug']) ?>" class="shrink-0 group">
-                <div class="rounded-full overflow-hidden border-2 border-gray-100 group-hover:border-amber-400 group-hover:shadow-lg group-hover:shadow-amber-100/50 group-hover:scale-110 transition-all duration-300 relative" style="width:<?= $catCircleSize ?>px;height:<?= $catCircleSize ?>px;">
-                    <img src="<?= $cat['image'] ?? '/uploads/no-image-sm.jpg' ?>" alt="<?= e($cat['name']) ?>" class="w-full h-full object-cover">
-                    <div class="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <p class="font-bold text-white text-center leading-tight px-1.5 drop-shadow-md" style="font-size:<?= $catCircleFontSize ?>"><?= e($cat['name']) ?></p>
-                    </div>
-                </div>
-            </a>
-            <?php endforeach; ?>
-        </div>
-        <!-- Fade edges -->
-        <div class="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-stone-50 to-transparent z-10 pointer-events-none"></div>
-        <div class="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-stone-50 to-transparent z-10 pointer-events-none"></div>
-    </div>
-    <div class="mt-6 flex items-center justify-center">
-        <a href="/categories" class="inline-flex items-center gap-1 text-amber-600 hover:text-amber-700 font-medium text-sm transition-colors">
-            View All Categories <i data-lucide="arrow-right" class="w-4 h-4"></i>
-        </a>
-    </div>
+</div>
 </section>
-
-<style>
-@keyframes catMarqueeScroll {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-}
-#catMarqueeTrack {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-#catMarqueeTrack::-webkit-scrollbar { display: none; }
-#catMarqueeWrap:hover #catMarqueeTrack {
-    animation-play-state: paused;
-}
-</style>
-
-<script>
-// Dynamic marquee speed based on content width
-(function(){
-    const track = document.getElementById('catMarqueeTrack');
-    if (!track) return;
-    const halfWidth = track.scrollWidth / 2;
-    // Base: 30px per second
-    const duration = Math.max(halfWidth / 30, 10);
-    track.style.setProperty('--marquee-duration', duration + 's');
-})();
-</script>
 <?php endif; ?>
 
 <!-- ==================== FEATURED PRODUCTS ==================== -->
@@ -397,7 +360,7 @@ $showTestimonials = !empty($googleBusinessId);
                         width="100%"
                         height="100%"
                         style="border:0;"
-                        allowfullscreen=""
+                        allowfullscreen="true"
                         loading="lazy"
                         referrerpolicy="no-referrer-when-downgrade"
                         class="w-full h-full"
@@ -610,6 +573,15 @@ $showTestimonials = !empty($googleBusinessId);
     .hero-progress-animate {
         animation: progressFill <?= $heroInterval ?>ms linear;
     }
+
+    /* Category sidebar scrollbar */
+    .hero-cat-list { -ms-overflow-style: none; scrollbar-width: thin; scrollbar-color: #d1d5db transparent; }
+    .hero-cat-list::-webkit-scrollbar { width: 4px; }
+    .hero-cat-list::-webkit-scrollbar-track { background: transparent; }
+    .hero-cat-list::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+    .hero-cat-list::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+    .hero-cat-mobile-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+    .hero-cat-mobile-scroll::-webkit-scrollbar { display: none; }
 </style>
 
 <script>
