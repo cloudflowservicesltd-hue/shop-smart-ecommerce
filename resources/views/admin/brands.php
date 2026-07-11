@@ -100,11 +100,27 @@ $brands = Database::select("SELECT b.*, (SELECT COUNT(*) FROM products WHERE bra
         </div>
     </div>
 
+    <!-- Bulk Actions Bar -->
+    <div id="bulkBar" class="hidden bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <span id="bulkCount" class="text-sm font-medium text-red-700">0 selected</span>
+            <button type="button" onclick="bulkDelete()" class="inline-flex items-center gap-1.5 bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-red-700 transition-colors">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Delete Selected
+            </button>
+            <button type="button" onclick="clearSelection()" class="inline-flex items-center gap-1.5 text-red-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors">
+                Clear
+            </button>
+        </div>
+    </div>
+
     <!-- Brands Table -->
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 border-b border-gray-100">
                 <tr>
+                    <th class="px-4 py-3 w-10">
+                        <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" class="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500 cursor-pointer">
+                    </th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Name</th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Slug</th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Products</th>
@@ -115,14 +131,17 @@ $brands = Database::select("SELECT b.*, (SELECT COUNT(*) FROM products WHERE bra
             <tbody class="divide-y divide-gray-50">
                 <?php if (empty($brands)): ?>
                 <tr>
-                    <td colspan="5" class="px-4 py-12 text-center text-gray-400">
+                    <td colspan="6" class="px-4 py-12 text-center text-gray-400">
                         <i data-lucide="package-open" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
                         <p class="text-sm">No brands found. Click "Add Brand" to create one.</p>
                     </td>
                 </tr>
                 <?php else: ?>
                 <?php foreach ($brands as $b): ?>
-                <tr class="hover:bg-gray-50/50 transition-colors">
+                <tr class="hover:bg-gray-50/50 transition-colors" data-id="<?= $b['id'] ?>">
+                    <td class="px-4 py-3">
+                        <input type="checkbox" class="brand-check w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500 cursor-pointer" value="<?= $b['id'] ?>" onchange="updateBulkBar()">
+                    </td>
                     <td class="px-4 py-3">
                         <div class="flex items-center gap-3">
                             <?php if ($b['logo']): ?>
@@ -168,7 +187,63 @@ $brands = Database::select("SELECT b.*, (SELECT COUNT(*) FROM products WHERE bra
     </div>
 </div>
 
+<!-- Bulk Delete Form -->
+<form id="bulkDeleteForm" method="POST" action="/admin/brands/bulk-delete" style="display:none;">
+    <?= csrf() ?>
+    <input type="hidden" name="ids" id="bulkIds" value="">
+</form>
+
 <script>
+function toggleSelectAll(master) {
+    document.querySelectorAll('.brand-check').forEach(function(cb) {
+        cb.checked = master.checked;
+        cb.closest('tr').classList.toggle('bg-amber-50/50', master.checked);
+    });
+    updateBulkBar();
+}
+
+function updateBulkBar() {
+    var checked = document.querySelectorAll('.brand-check:checked');
+    var bar = document.getElementById('bulkBar');
+    var count = document.getElementById('bulkCount');
+    var selectAll = document.getElementById('selectAll');
+    if (checked.length > 0) {
+        bar.classList.remove('hidden');
+        count.textContent = checked.length + ' selected';
+    } else {
+        bar.classList.add('hidden');
+    }
+    var all = document.querySelectorAll('.brand-check');
+    selectAll.checked = all.length > 0 && checked.length === all.length;
+    selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+}
+
+function clearSelection() {
+    document.querySelectorAll('.brand-check').forEach(function(cb) {
+        cb.checked = false;
+        cb.closest('tr').classList.remove('bg-amber-50/50');
+    });
+    document.getElementById('selectAll').checked = false;
+    document.getElementById('selectAll').indeterminate = false;
+    updateBulkBar();
+}
+
+function bulkDelete() {
+    var checked = document.querySelectorAll('.brand-check:checked');
+    if (checked.length === 0) return;
+    var ids = Array.from(checked).map(function(cb) { return cb.value; }).join(',');
+    if (!confirm('Delete ' + checked.length + ' selected brands? This cannot be undone.')) return;
+    document.getElementById('bulkIds').value = ids;
+    document.getElementById('bulkDeleteForm').submit();
+}
+
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('brand-check')) {
+        e.target.closest('tr').classList.toggle('bg-amber-50/50', e.target.checked);
+        updateBulkBar();
+    }
+});
+
 function openEditModal(id, name, slug, description, isActive, logo) {
     document.getElementById('editId').value = id;
     document.getElementById('editName').value = name;

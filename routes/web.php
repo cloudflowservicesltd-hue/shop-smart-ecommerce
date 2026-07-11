@@ -424,6 +424,7 @@ $router->group(['prefix' => 'admin', 'middleware' => 'admin'], function($router)
     // Brands
     $router->get('/brands', 'AdminBrandController@index');
     $router->post('/brands/store', 'AdminBrandController@store');
+    $router->post('/brands/bulk-delete', 'AdminBrandController@bulkDelete');
     $router->post('/brands/{id}/delete', 'AdminBrandController@delete');
     $router->post('/brands/{id}/update', 'AdminBrandController@update');
 
@@ -433,6 +434,7 @@ $router->group(['prefix' => 'admin', 'middleware' => 'admin'], function($router)
 
     // Orders
     $router->get('/orders', 'AdminOrderController@index');
+    $router->post('/orders/bulk-delete', 'AdminOrderController@bulkDelete');
     $router->get('/orders/{id}', 'AdminOrderController@show');
     $router->post('/orders/{id}/status', 'AdminOrderController@updateStatus');
     $router->post('/orders/{id}/notes', 'AdminOrderController@updateNotes');

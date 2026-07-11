@@ -51,6 +51,28 @@ class AdminOrderController extends BaseController
         Redirect::to('/admin/orders/' . $id);
     }
 
+    public function bulkDelete()
+    {
+        $ids = Request::post('ids', '');
+        if (empty($ids)) {
+            Session::flash('error', 'No orders selected');
+            Redirect::to('/admin/orders');
+            return;
+        }
+        $idList = array_filter(array_map('intval', explode(',', $ids)));
+        if (empty($idList)) {
+            Session::flash('error', 'Invalid selection');
+            Redirect::to('/admin/orders');
+            return;
+        }
+        $placeholders = implode(',', array_fill(0, count($idList), '?'));
+        // Delete order items first, then orders
+        Database::delete('order_items', "order_id IN ({$placeholders})", $idList);
+        Database::delete('orders', "id IN ({$placeholders})", $idList);
+        Session::flash('success', count($idList) . ' orders deleted');
+        Redirect::to('/admin/orders');
+    }
+
     public function posSales()
     {
         $breadcrumbs = [['POS Sales', '']];

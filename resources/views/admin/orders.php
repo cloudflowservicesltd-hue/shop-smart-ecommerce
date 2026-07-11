@@ -16,6 +16,19 @@ $paymentStatusColors = ['paid'=>'text-green-600','pending'=>'text-yellow-600','f
 <div class="space-y-4">
     <h1 class="font-heading font-semibold text-xl text-gray-900">Online Orders</h1>
 
+    <!-- Bulk Actions Bar -->
+    <div id="bulkBar" class="hidden bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <span id="bulkCount" class="text-sm font-medium text-red-700">0 selected</span>
+            <button type="button" onclick="bulkDelete()" class="inline-flex items-center gap-1.5 bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-red-700 transition-colors">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Delete Selected
+            </button>
+            <button type="button" onclick="clearSelection()" class="inline-flex items-center gap-1.5 text-red-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors">
+                Clear
+            </button>
+        </div>
+    </div>
+
     <!-- Tabs -->
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-2 flex flex-wrap gap-1">
         <?php foreach ($tabs as $key => $label): ?>
@@ -30,6 +43,9 @@ $paymentStatusColors = ['paid'=>'text-green-600','pending'=>'text-yellow-600','f
         <table class="w-full text-sm">
             <thead class="bg-gray-50 border-b border-gray-100">
                 <tr>
+                    <th class="px-4 py-3 w-10">
+                        <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" class="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500 cursor-pointer">
+                    </th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Order #</th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Customer</th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Date</th>
@@ -44,7 +60,10 @@ $paymentStatusColors = ['paid'=>'text-green-600','pending'=>'text-yellow-600','f
                 <?php foreach ($orders['data'] as $o):
                     $itemCount = Database::count('order_items', 'order_id = ?', [$o['id']]);
                 ?>
-                <tr class="hover:bg-gray-50/50">
+                <tr class="hover:bg-gray-50/50" data-id="<?= $o['id'] ?>">
+                    <td class="px-4 py-3">
+                        <input type="checkbox" class="order-check w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500 cursor-pointer" value="<?= $o['id'] ?>" onchange="updateBulkBar()">
+                    </td>
                     <td class="px-4 py-3 font-mono text-xs font-medium"><?= e($o['order_number']) ?></td>
                     <td class="px-4 py-3"><div><p class="font-medium"><?= e($o['customer_name']) ?></p><p class="text-xs text-gray-500"><?= e($o['customer_email'] ?? '') ?></p></div></td>
                     <td class="px-4 py-3 text-gray-600 text-xs"><?= formatDate($o['created_at']) ?></td>
@@ -75,10 +94,68 @@ $paymentStatusColors = ['paid'=>'text-green-600','pending'=>'text-yellow-600','f
                 </tr>
                 <?php endforeach; ?>
                 <?php if (empty($orders['data'])): ?>
-                    <tr><td colspan="8" class="px-4 py-12 text-center text-gray-500">No orders found</td></tr>
+                    <tr><td colspan="9" class="px-4 py-12 text-center text-gray-500">No orders found</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
         <?= View::pagination($orders, "/admin/orders?tab={$tab}") ?>
     </div>
 </div>
+
+<!-- Bulk Delete Form -->
+<form id="bulkDeleteForm" method="POST" action="/admin/orders/bulk-delete" style="display:none;">
+    <?= csrf() ?>
+    <input type="hidden" name="ids" id="bulkIds" value="">
+</form>
+
+<script>
+function toggleSelectAll(master) {
+    document.querySelectorAll('.order-check').forEach(function(cb) {
+        cb.checked = master.checked;
+        cb.closest('tr').classList.toggle('bg-amber-50/50', master.checked);
+    });
+    updateBulkBar();
+}
+
+function updateBulkBar() {
+    var checked = document.querySelectorAll('.order-check:checked');
+    var bar = document.getElementById('bulkBar');
+    var count = document.getElementById('bulkCount');
+    var selectAll = document.getElementById('selectAll');
+    if (checked.length > 0) {
+        bar.classList.remove('hidden');
+        count.textContent = checked.length + ' selected';
+    } else {
+        bar.classList.add('hidden');
+    }
+    var all = document.querySelectorAll('.order-check');
+    selectAll.checked = all.length > 0 && checked.length === all.length;
+    selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+}
+
+function clearSelection() {
+    document.querySelectorAll('.order-check').forEach(function(cb) {
+        cb.checked = false;
+        cb.closest('tr').classList.remove('bg-amber-50/50');
+    });
+    document.getElementById('selectAll').checked = false;
+    document.getElementById('selectAll').indeterminate = false;
+    updateBulkBar();
+}
+
+function bulkDelete() {
+    var checked = document.querySelectorAll('.order-check:checked');
+    if (checked.length === 0) return;
+    var ids = Array.from(checked).map(function(cb) { return cb.value; }).join(',');
+    if (!confirm('Delete ' + checked.length + ' selected orders? This cannot be undone. Order items will also be deleted.')) return;
+    document.getElementById('bulkIds').value = ids;
+    document.getElementById('bulkDeleteForm').submit();
+}
+
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('order-check')) {
+        e.target.closest('tr').classList.toggle('bg-amber-50/50', e.target.checked);
+        updateBulkBar();
+    }
+});
+</script>
