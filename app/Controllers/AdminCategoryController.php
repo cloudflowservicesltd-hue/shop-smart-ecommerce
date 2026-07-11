@@ -53,4 +53,24 @@ class AdminCategoryController extends BaseController
         Session::flash('success', 'Category deleted');
         Redirect::to('/admin/categories');
     }
+
+    public function bulkDelete()
+    {
+        $ids = Request::post('ids', '');
+        if (empty($ids)) {
+            Session::flash('error', 'No categories selected');
+            Redirect::to('/admin/categories');
+            return;
+        }
+        $idList = array_filter(array_map('intval', explode(',', $ids)));
+        if (empty($idList)) {
+            Session::flash('error', 'Invalid selection');
+            Redirect::to('/admin/categories');
+            return;
+        }
+        $placeholders = implode(',', array_fill(0, count($idList), '?'));
+        Database::delete('categories', "id IN ({$placeholders})", $idList);
+        Session::flash('success', count($idList) . ' categories deleted');
+        Redirect::to('/admin/categories');
+    }
 }

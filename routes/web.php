@@ -417,6 +417,7 @@ $router->group(['prefix' => 'admin', 'middleware' => 'admin'], function($router)
     // Categories
     $router->get('/categories', 'AdminCategoryController@index');
     $router->post('/categories/store', 'AdminCategoryController@store');
+    $router->post('/categories/bulk-delete', 'AdminCategoryController@bulkDelete');
     $router->post('/categories/{id}/update', 'AdminCategoryController@update');
     $router->post('/categories/{id}/delete', 'AdminCategoryController@delete');
 
