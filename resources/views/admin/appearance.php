@@ -67,12 +67,17 @@
                     <p class="text-sm text-gray-500 mb-2">How the hero image fills the banner area.</p>
                     <select id="hero_image_fit" name="hero_image_fit"
                         class="w-full max-w-xs rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors">
-                        <option value="cover" <?= (e($settings['hero_image_fit'] ?? '') === 'cover' || empty($settings['hero_image_fit'])) ? 'selected' : '' ?>>Cover — Fills area, may crop edges</option>
+                        <option value="cover" <?= (e($settings['hero_image_fit'] ?? '') === 'cover' || empty($settings['hero_image_fit'])) ? 'selected' : '' ?>>Cover — Fills area, crops edges evenly</option>
+                        <option value="cover-top" <?= e($settings['hero_image_fit'] ?? '') === 'cover-top' ? 'selected' : '' ?>>Cover Top — Fills area, crops from bottom</option>
+                        <option value="cover-bottom" <?= e($settings['hero_image_fit'] ?? '') === 'cover-bottom' ? 'selected' : '' ?>>Cover Bottom — Fills area, crops from top</option>
                         <option value="contain" <?= e($settings['hero_image_fit'] ?? '') === 'contain' ? 'selected' : '' ?>>Contain — Shows full image, no crop</option>
+                        <option value="contain-center" <?= e($settings['hero_image_fit'] ?? '') === 'contain-center' ? 'selected' : '' ?>>Contain Center — Full image, centered with bars</option>
+                        <option value="contain-bottom" <?= e($settings['hero_image_fit'] ?? '') === 'contain-bottom' ? 'selected' : '' ?>>Contain Bottom — Full image, aligned bottom</option>
                         <option value="fill" <?= e($settings['hero_image_fit'] ?? '') === 'fill' ? 'selected' : '' ?>>Fill — Stretches to fill (may distort)</option>
-                        <option value="none" <?= e($settings['hero_image_fit'] ?? '') === 'none' ? 'selected' : '' ?>>Auto — Natural size, no scaling</option>
+                        <option value="scale-down" <?= e($settings['hero_image_fit'] ?? '') === 'scale-down' ? 'selected' : '' ?>>Scale Down — Natural or shrink to fit</option>
+                        <option value="none" <?= e($settings['hero_image_fit'] ?? '') === 'none' ? 'selected' : '' ?>>None — Original size, no scaling</option>
                     </select>
-                    <p class="mt-1.5 text-xs text-gray-400">Use "Contain" to show the entire image without cropping.</p>
+                    <p class="mt-1.5 text-xs text-gray-400">Use "Contain" variants to show the entire image without cropping.</p>
                 </div>
 
                 <!-- Hero Image Position -->

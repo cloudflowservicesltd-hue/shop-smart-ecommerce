@@ -11,8 +11,25 @@ foreach (Database::select("SELECT * FROM settings WHERE group_name = 'appearance
 }
 $heroAutoplay = ($appearance['hero_autoplay'] ?? '1') === '1';
 $heroInterval = (int)($appearance['hero_interval'] ?? 5000);
-$heroImageFit = in_array($appearance['hero_image_fit'] ?? 'cover', ['cover','contain','fill','none']) ? $appearance['hero_image_fit'] : 'cover';
-$heroImagePosition = in_array($appearance['hero_image_position'] ?? 'center', ['top','bottom','left','right','center']) ? $appearance['hero_image_position'] : 'center';
+
+// Parse hero image fit — supports composite values like "cover-top", "contain-bottom"
+$_fitRaw = $appearance['hero_image_fit'] ?? 'cover';
+$_fitMap = [
+    'cover'          => ['cover','center'],
+    'cover-top'      => ['cover','top'],
+    'cover-bottom'   => ['cover','bottom'],
+    'contain'        => ['contain','center'],
+    'contain-center' => ['contain','center'],
+    'contain-bottom' => ['contain','bottom'],
+    'fill'           => ['fill','center'],
+    'scale-down'     => ['scale-down','center'],
+    'none'           => ['none','center'],
+];
+$_fitParsed = $_fitMap[$_fitRaw] ?? ['cover','center'];
+// Separate position setting overrides composite position (unless composite was used)
+$_posOverride = in_array($appearance['hero_image_position'] ?? '', ['top','bottom','left','right','center']) ? $appearance['hero_image_position'] : null;
+$heroImageFit = $_fitParsed[0];
+$heroImagePosition = $_posOverride ?? $_fitParsed[1];
 $showCategories = ($appearance['show_categories'] ?? '1') === '1';
 $showFeatured = ($appearance['show_featured'] ?? '1') === '1';
 $showNewArrivals = ($appearance['show_new_arrivals'] ?? '1') === '1';
@@ -147,7 +164,7 @@ $showNewsletter = ($appearance['show_newsletter'] ?? '1') === '1';
     <div class="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5">
         <?php foreach ($heroSlides as $i => $s): ?>
         <button onclick="heroSlider.goTo(<?= $i ?>)" 
-                class="hero-dot w-2.5 h-2.5 rounded-full transition-all duration-300 <?= $i === 0 ? 'bg-white w-8' : 'bg-white/40 hover:bg-white/60' }}"
+                class="hero-dot w-2.5 h-2.5 rounded-full transition-all duration-300 <?= $i === 0 ? 'bg-white w-8' : 'bg-white/40 hover:bg-white/60' ?>"
                 data-dot="<?= $i ?>"></button>
         <?php endforeach; ?>
     </div>
