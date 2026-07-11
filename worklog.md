@@ -345,3 +345,25 @@ Stage Summary:
 - Keys are synced to both new and old names + .env for backward compatibility
 - Email spam fix: From email always matches the authenticated SMTP username
 - Pushed as commit 81b8a21
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix POS API 403 errors — all /api/pos/* and /api/commissions/* returning 403 HTML
+
+Work Log:
+- Analyzed POS debug logs showing ALL API endpoints returning 403 with text/html content
+- Discovered `public/api/` directory contained a parallel shim routing layer (23 files)
+- Found root cause: `public/api/pos/holds/` directory matched Apache's `-d` rewrite condition, causing server to serve directory directly → 403
+- Verified ALL API routes are registered in routes/web.php and handled by PosController/CommissionController
+- Confirmed root `api/pos/` files are `.disabled` so index.php delegation won't intercept POS routes
+- Deleted entire `public/api/` directory (23 files removed)
+- Added `.htaccess` rule to force ALL `/api/*` requests through index.php before -f/-d checks
+- Fixed frontend `CHECKOUT_SUCCESS` log bug — was logging success even on 403 fallback responses
+- Added `CHECKOUT_FAIL` log for better debugging
+- Committed and pushed to live server
+
+Stage Summary:
+- Root cause: `public/api/` shim routing layer conflicted with Apache's mod_rewrite, specifically `public/api/pos/holds/` directory triggered the `-d` condition
+- Fix: Removed entire `public/api/` directory + added .htaccess safeguard rule
+- All POS and commission routes now route through public/index.php → Router → Controllers
+- Commit: 77a685f "Fix POS API 403 errors - remove duplicate routing layer"
