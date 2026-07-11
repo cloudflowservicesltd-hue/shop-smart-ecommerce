@@ -48,6 +48,7 @@ $paymentStatusColors = ['paid'=>'text-green-600','pending'=>'text-yellow-600','f
                     </th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Order #</th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Customer</th>
+                    <th class="text-left px-4 py-3 font-medium text-gray-600">Shipping</th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Date</th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Items</th>
                     <th class="text-left px-4 py-3 font-medium text-gray-600">Total</th>
@@ -66,6 +67,26 @@ $paymentStatusColors = ['paid'=>'text-green-600','pending'=>'text-yellow-600','f
                     </td>
                     <td class="px-4 py-3 font-mono text-xs font-medium"><?= e($o['order_number']) ?></td>
                     <td class="px-4 py-3"><div><p class="font-medium"><?= e($o['customer_name']) ?></p><p class="text-xs text-gray-500"><?= e($o['customer_email'] ?? '') ?></p></div></td>
+                    <td class="px-4 py-3 max-w-[220px]">
+                        <?php if (!empty($o['customer_address'])): ?>
+                        <div class="group/ship relative">
+                            <p class="text-xs text-gray-700 truncate" title="<?= e($o['customer_address']) ?>"><?= e($o['customer_address']) ?></p>
+                            <?php if (!empty($o['customer_phone'])): ?>
+                            <p class="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                                <i data-lucide="phone" class="w-3 h-3"></i>
+                                <?= e($o['customer_phone']) ?>
+                            </p>
+                            <?php endif; ?>
+                            <?php if (strlen($o['customer_address']) > 50): ?>
+                            <p class="text-[10px] text-amber-600 mt-0.5 font-medium">Click "View" for full address</p>
+                            <?php endif; ?>
+                        </div>
+                        <?php elseif ($o['is_pos']): ?>
+                        <span class="text-xs text-gray-400 italic">POS — No shipping</span>
+                        <?php else: ?>
+                        <span class="text-xs text-gray-400 italic">No address</span>
+                        <?php endif; ?>
+                    </td>
                     <td class="px-4 py-3 text-gray-600 text-xs"><?= formatDate($o['created_at']) ?></td>
                     <td class="px-4 py-3 text-gray-600"><?= $itemCount ?></td>
                     <td class="px-4 py-3 font-medium"><?= formatMoney($o['total']) ?></td>
@@ -94,7 +115,7 @@ $paymentStatusColors = ['paid'=>'text-green-600','pending'=>'text-yellow-600','f
                 </tr>
                 <?php endforeach; ?>
                 <?php if (empty($orders['data'])): ?>
-                    <tr><td colspan="9" class="px-4 py-12 text-center text-gray-500">No orders found</td></tr>
+                    <tr><td colspan="10" class="px-4 py-12 text-center text-gray-500">No orders found</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
