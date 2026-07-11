@@ -11,21 +11,13 @@ $adminFavicon = !empty($adminSettings['site_favicon']) ? $adminSettings['site_fa
 $adminStoreName = $adminSettings['store_name'] ?? 'ShopSmart';
 $adminSidebarColor = $adminSettings['login_bg_color'] ?? '#111827';
 
-// Manager menu permissions: determine which restricted menus a non-super_admin user can see
-$currentUser = Auth::user();
-$currentUserRole = $currentUser['role'] ?? '';
-$restrictedMenus = ['pages','settings','api-integrations','commissions','shipping','social-media','seo','sitemap','cities','payments','marketing'];
-$grantedMenus = [];
-if ($currentUserRole !== 'super_admin') {
-    $perms = json_decode($currentUser['menu_permissions'] ?? '[]', true) ?: [];
-    $grantedMenus = $perms;
-}
-function canSeeMenu($menuSlug) {
-    global $currentUserRole, $grantedMenus;
-    if ($currentUserRole === 'super_admin') return true;
-    if ($currentUserRole === 'cashier') return false;
-    // admin/manager role - check if granted
-    return is_array($grantedMenus) && in_array($menuSlug, $grantedMenus);
+// Manager menu permissions
+$_amRole = Auth::user()['role'] ?? '';
+$_amPerms = ($_amRole !== 'super_admin') ? (json_decode(Auth::user()['menu_permissions'] ?? '[]', true) ?: []) : null;
+function _canSee($slug, $role, $perms) {
+    if ($role === 'super_admin') return true;
+    if ($role === 'cashier') return false;
+    return is_array($perms) && in_array($slug, $perms);
 }
 ?>
 <!DOCTYPE html>
@@ -65,7 +57,11 @@ function canSeeMenu($menuSlug) {
         .scrollbar-thin::-webkit-scrollbar-track{background:rgba(0,0,0,0.2)}
         .scrollbar-thin::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.2);border-radius:3px}
         .submenu{max-height:0;overflow:hidden;transition:max-height .2s ease}
-        .submenu.open{max-height:300px}
+        .submenu.open{max-height:500px}
+        #sidebar nav::-webkit-scrollbar{width:5px}
+        #sidebar nav::-webkit-scrollbar-track{background:transparent}
+        #sidebar nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:3px}
+        #sidebar nav::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.3)}
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen flex">
@@ -112,7 +108,7 @@ function canSeeMenu($menuSlug) {
                     <a href="/admin/testimonials" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/testimonials') ? 'active text-amber-400' : '' ?>">
                         <i data-lucide="message-square-quote" class="w-4 h-4"></i> Testimonials
                     </a>
-                    <?php if (canSeeMenu('pages')): ?>
+                    <?php if (_canSee('pages', $_amRole, $_amPerms)): ?>
                     <a href="/admin/pages" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/pages') ? 'active text-amber-400' : '' ?>">
                         <i data-lucide="file-text" class="w-4 h-4"></i> CMS Pages
                     </a>
@@ -172,7 +168,7 @@ function canSeeMenu($menuSlug) {
                 <i data-lucide="monitor" class="w-4.5 h-4.5"></i> POS Terminal
             </a>
 
-            <?php if (canSeeMenu('marketing')): ?>
+            <?php if (_canSee('marketing', $_amRole, $_amPerms)): ?>
             <!-- Marketing -->
             <div>
                 <button onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:text-white hover:bg-white/5 transition-colors">
@@ -210,7 +206,7 @@ function canSeeMenu($menuSlug) {
                 <i data-lucide="ticket" class="w-4.5 h-4.5"></i> Coupons
             </a>
 
-            <?php if (canSeeMenu('payments')): ?>
+            <?php if (_canSee('payments', $_amRole, $_amPerms)): ?>
             <!-- Payments -->
             <div>
                 <button onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:text-white hover:bg-white/5 transition-colors">
@@ -240,12 +236,12 @@ function canSeeMenu($menuSlug) {
                 <i data-lucide="shield" class="w-4.5 h-4.5"></i> Users & Roles
             </a>
 
-            <?php if (canSeeMenu('settings')): ?>
+            <?php if (_canSee('settings', $_amRole, $_amPerms)): ?>
             <a href="/admin/settings" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/settings') && !str_contains(Request::uri(), '/admin/settings/cities') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="settings" class="w-4.5 h-4.5"></i> Settings
             </a>
             <?php endif; ?>
-            <?php if (canSeeMenu('cities')): ?>
+            <?php if (_canSee('cities', $_amRole, $_amPerms)): ?>
             <a href="/admin/settings/cities" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/settings/cities') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="map-pin" class="w-4 h-4"></i> Cities
             </a>
@@ -253,12 +249,12 @@ function canSeeMenu($menuSlug) {
             <a href="/admin/settings/make-logs" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/settings/make-logs') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="workflow" class="w-4 h-4"></i> Make.com Logs
             </a>
-            <?php if (canSeeMenu('seo')): ?>
+            <?php if (_canSee('seo', $_amRole, $_amPerms)): ?>
             <a href="/admin/seo" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/seo') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="search" class="w-4 h-4"></i> SEO & Meta
             </a>
             <?php endif; ?>
-            <?php if (canSeeMenu('sitemap')): ?>
+            <?php if (_canSee('sitemap', $_amRole, $_amPerms)): ?>
             <a href="/admin/sitemap" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/sitemap') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="file-code" class="w-4 h-4"></i> Sitemap
             </a>
@@ -268,25 +264,25 @@ function canSeeMenu($menuSlug) {
                 <i data-lucide="pen-line" class="w-4.5 h-4.5"></i> Blog
             </a>
 
-            <?php if (canSeeMenu('shipping')): ?>
+            <?php if (_canSee('shipping', $_amRole, $_amPerms)): ?>
             <a href="/admin/shipping" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/shipping') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="truck" class="w-4.5 h-4.5"></i> Shipping Fees
             </a>
             <?php endif; ?>
 
-            <?php if (canSeeMenu('social-media')): ?>
+            <?php if (_canSee('social-media', $_amRole, $_amPerms)): ?>
             <a href="/admin/social-media" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/social-media') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="share-2" class="w-4.5 h-4.5"></i> Social Media
             </a>
             <?php endif; ?>
 
-            <?php if (canSeeMenu('api-integrations')): ?>
+            <?php if (_canSee('api-integrations', $_amRole, $_amPerms)): ?>
             <a href="/admin/api-integrations" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/api-integrations') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="plug" class="w-4.5 h-4.5"></i> API Integrations
             </a>
             <?php endif; ?>
 
-            <?php if (canSeeMenu('commissions')): ?>
+            <?php if (_canSee('commissions', $_amRole, $_amPerms)): ?>
             <a href="/admin/commissions" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/commissions') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="coins" class="w-4.5 h-4.5"></i> Commissions
             </a>
