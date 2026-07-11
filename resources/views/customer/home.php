@@ -27,7 +27,7 @@ $catCircleFontSize = $catCircleSize < 80 ? '8px' : ($catCircleSize < 120 ? '10px
 
 <!-- ==================== HERO SLIDER ==================== -->
 <?php if (!empty($heroSlides)): ?>
-<section class="relative w-full overflow-hidden" style="height: clamp(420px, 56vh, 620px);">
+<section id="heroSection" class="relative w-full overflow-hidden" style="height: clamp(420px, 56vh, 620px);">
     <!-- Slides Container -->
     <div id="heroSlider" class="relative w-full h-full">
         <?php foreach ($heroSlides as $index => $slide): ?>
@@ -699,4 +699,30 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'ArrowRight') heroSlider.next();
     });
 });
+
+// Floating scroll-to-hero button
+(function() {
+    var hero = document.getElementById('heroSection');
+    if (!hero) return;
+    var btn = document.createElement('button');
+    btn.id = 'scrollToHeroBtn';
+    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>';
+    btn.title = 'Back to top';
+    btn.style.cssText = 'position:fixed;bottom:24px;left:24px;z-index:40;width:48px;height:48px;border-radius:50%;background:#f59e0b;color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(245,158,11,0.4);opacity:0;transform:translateY(20px);transition:opacity .3s,transform .3s,background .2s;pointer-events:none;';
+    btn.addEventListener('click', function() { hero.scrollIntoView({ behavior: 'smooth' }); });
+    document.body.appendChild(btn);
+    window.addEventListener('scroll', function() {
+        if (window.scrollY > 400) {
+            btn.style.opacity = '1';
+            btn.style.transform = 'translateY(0)';
+            btn.style.pointerEvents = 'auto';
+        } else {
+            btn.style.opacity = '0';
+            btn.style.transform = 'translateY(20px)';
+            btn.style.pointerEvents = 'none';
+        }
+    });
+    btn.addEventListener('mouseenter', function() { btn.style.background = '#d97706'; });
+    btn.addEventListener('mouseleave', function() { btn.style.background = '#f59e0b'; });
+})();
 </script>

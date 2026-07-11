@@ -9,6 +9,7 @@ try {
     try { $db->exec("ALTER TABLE `orders` ADD COLUMN `referral_code` VARCHAR(50) DEFAULT NULL AFTER `cashier_id`"); } catch (\Throwable $e) {}
     try { $db->exec("ALTER TABLE `users` ADD COLUMN `last_login` DATETIME DEFAULT NULL AFTER `updated_at`"); } catch (\Throwable $e) {}
     try { $db->exec("ALTER TABLE `users` ADD COLUMN `referral_code` VARCHAR(50) DEFAULT NULL AFTER `country`"); } catch (\Throwable $e) {}
+    try { $db->exec("ALTER TABLE `users` ADD COLUMN `menu_permissions` TEXT DEFAULT NULL AFTER `referral_code`"); } catch (\Throwable $e) {}
     try { $db->exec("ALTER TABLE `promo_banners` ADD COLUMN `image_url` TEXT DEFAULT NULL AFTER `icon`"); } catch (\Throwable $e) {}
     try { $db->exec("ALTER TABLE `orders` ADD COLUMN `receiver_name` VARCHAR(255) DEFAULT NULL AFTER `shipping_longitude`"); } catch (\Throwable $e) {}
     try { $db->exec("ALTER TABLE `orders` ADD COLUMN `apartment` VARCHAR(255) DEFAULT NULL AFTER `receiver_name`"); } catch (\Throwable $e) {}

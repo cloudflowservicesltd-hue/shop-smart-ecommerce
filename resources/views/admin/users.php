@@ -75,6 +75,36 @@ $isSuper = Auth::isSuperAdmin();
                         <span class="ms-3 text-sm font-medium text-gray-700">Active</span>
                     </label>
                 </div>
+                <!-- Menu Permissions (only for admin/manager, only super_admin can set) -->
+                <div id="menuPermsSection" class="hidden">
+                    <div class="border border-gray-200 rounded-xl p-4">
+                        <p class="text-sm font-semibold text-gray-800 mb-1">Menu Permissions</p>
+                        <p class="text-xs text-gray-400 mb-3">Grant access to specific admin menus for this manager.</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <?php
+                            $menuPermsList = [
+                                'pages' => 'CMS Pages',
+                                'settings' => 'Settings',
+                                'api-integrations' => 'API Integrations',
+                                'commissions' => 'Commissions',
+                                'shipping' => 'Shipping Fees',
+                                'social-media' => 'Social Media',
+                                'seo' => 'SEO & Meta',
+                                'sitemap' => 'Sitemap',
+                                'cities' => 'Cities',
+                                'payments' => 'Payments',
+                                'marketing' => 'Marketing',
+                            ];
+                            foreach ($menuPermsList as $slug => $label):
+                            ?>
+                            <label class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                                <input type="checkbox" name="menu_perms[]" value="<?= $slug ?>" class="menu-perm-check w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500">
+                                <span class="text-xs font-medium text-gray-700"><?= $label ?></span>
+                            </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
                 <div class="flex justify-end gap-3 pt-2">
                     <button type="button" onclick="closeEditModal()" class="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">Cancel</button>
                     <button type="submit" class="px-4 py-2.5 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700">Save Changes</button>
@@ -101,7 +131,7 @@ $isSuper = Auth::isSuperAdmin();
                     <td class="px-4 py-3"><span class="w-2 h-2 rounded-full inline-block mr-1.5 <?= $u['is_active'] ? 'bg-amber-500' : 'bg-gray-300' ?>"></span><?= $u['is_active'] ? 'Active' : 'Inactive' ?></td>
                     <td class="px-4 py-3 text-xs text-gray-500"><?= $u['last_login'] ? timeAgo($u['last_login']) : 'Never' ?></td>
                     <td class="px-4 py-3 text-right space-x-1">
-                        <button onclick="openEditModal(<?= $u['id'] ?>, '<?= e(addslashes($u['name'])) ?>', '<?= e(addslashes($u['email'])) ?>', '<?= $u['role'] ?>', <?= $u['is_active'] ? 1 : 0 ?>)" class="p-1.5 text-gray-400 hover:text-amber-600 rounded-lg inline-flex" title="Edit">
+                        <button onclick="openEditModal(<?= $u['id'] ?>, '<?= e(addslashes($u['name'])) ?>', '<?= e(addslashes($u['email'])) ?>', '<?= $u['role'] ?>', <?= $u['is_active'] ? 1 : 0 ?>, '<?= e(addslashes($u['menu_permissions'] ?? '')) ?>')" class="p-1.5 text-gray-400 hover:text-amber-600 rounded-lg inline-flex" title="Edit">
                             <i data-lucide="pencil" class="w-4 h-4"></i>
                         </button>
                         <?php if ($u['id'] !== Auth::id()): ?>
@@ -120,7 +150,7 @@ $isSuper = Auth::isSuperAdmin();
 <script>
 const isSuper = <?= $isSuper ? 'true' : 'false' ?>;
 
-function openEditModal(id, name, email, role, isActive) {
+function openEditModal(id, name, email, role, isActive, menuPerms) {
     document.getElementById('editUserId').value = id;
     document.getElementById('editName').value = name;
     document.getElementById('editEmail').value = email;
@@ -132,10 +162,34 @@ function openEditModal(id, name, email, role, isActive) {
     const superOpt = document.getElementById('editSuperAdminOption');
     if (superOpt) superOpt.style.display = isSuper ? '' : 'none';
 
+    // Show menu permissions for admin role only
+    const permsSection = document.getElementById('menuPermsSection');
+    if (permsSection) {
+        permsSection.classList.toggle('hidden', role !== 'admin' || !isSuper);
+    }
+
+    // Set menu permission checkboxes
+    try {
+        var perms = menuPerms ? JSON.parse(menuPerms) : [];
+        document.querySelectorAll('.menu-perm-check').forEach(function(cb) {
+            cb.checked = perms.indexOf(cb.value) !== -1;
+        });
+    } catch(e) {
+        document.querySelectorAll('.menu-perm-check').forEach(function(cb) { cb.checked = false; });
+    }
+
     document.getElementById('editModal').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
     lucide.createIcons();
 }
+
+// Toggle menu perms visibility when role changes
+document.getElementById('editRole').addEventListener('change', function() {
+    var permsSection = document.getElementById('menuPermsSection');
+    if (permsSection) {
+        permsSection.classList.toggle('hidden', this.value !== 'admin' || !isSuper);
+    }
+});
 
 function closeEditModal() {
     document.getElementById('editModal').classList.add('hidden');

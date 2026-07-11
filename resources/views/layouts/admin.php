@@ -10,6 +10,23 @@ $adminLogo = !empty($adminSettings['site_logo']) ? $adminSettings['site_logo'] :
 $adminFavicon = !empty($adminSettings['site_favicon']) ? $adminSettings['site_favicon'] : '';
 $adminStoreName = $adminSettings['store_name'] ?? 'ShopSmart';
 $adminSidebarColor = $adminSettings['login_bg_color'] ?? '#111827';
+
+// Manager menu permissions: determine which restricted menus a non-super_admin user can see
+$currentUser = Auth::user();
+$currentUserRole = $currentUser['role'] ?? '';
+$restrictedMenus = ['pages','settings','api-integrations','commissions','shipping','social-media','seo','sitemap','cities','payments','marketing'];
+$grantedMenus = [];
+if ($currentUserRole !== 'super_admin') {
+    $perms = json_decode($currentUser['menu_permissions'] ?? '[]', true) ?: [];
+    $grantedMenus = $perms;
+}
+function canSeeMenu($menuSlug) {
+    global $currentUserRole, $grantedMenus;
+    if ($currentUserRole === 'super_admin') return true;
+    if ($currentUserRole === 'cashier') return false;
+    // admin/manager role - check if granted
+    return in_array($menuSlug, $grantedMenus);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -95,9 +112,11 @@ $adminSidebarColor = $adminSettings['login_bg_color'] ?? '#111827';
                     <a href="/admin/testimonials" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/testimonials') ? 'active text-amber-400' : '' ?>">
                         <i data-lucide="message-square-quote" class="w-4 h-4"></i> Testimonials
                     </a>
+                    <?php if (canSeeMenu('pages')): ?>
                     <a href="/admin/pages" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/pages') ? 'active text-amber-400' : '' ?>">
                         <i data-lucide="file-text" class="w-4 h-4"></i> CMS Pages
                     </a>
+                    <?php endif; ?>
                     <a href="/admin/appearance" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/appearance') ? 'active text-amber-400' : '' ?>">
                         <i data-lucide="settings-2" class="w-4 h-4"></i> Appearance
                     </a>
@@ -153,6 +172,7 @@ $adminSidebarColor = $adminSettings['login_bg_color'] ?? '#111827';
                 <i data-lucide="monitor" class="w-4.5 h-4.5"></i> POS Terminal
             </a>
 
+            <?php if (canSeeMenu('marketing')): ?>
             <!-- Marketing -->
             <div>
                 <button onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:text-white hover:bg-white/5 transition-colors">
@@ -183,12 +203,14 @@ $adminSidebarColor = $adminSettings['login_bg_color'] ?? '#111827';
                     </a>
                 </div>
             </div>
+            <?php endif; ?>
 
             <!-- Coupons -->
             <a href="/admin/coupons" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/coupons') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="ticket" class="w-4.5 h-4.5"></i> Coupons
             </a>
 
+            <?php if (canSeeMenu('payments')): ?>
             <!-- Payments -->
             <div>
                 <button onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:text-white hover:bg-white/5 transition-colors">
@@ -204,6 +226,7 @@ $adminSidebarColor = $adminSettings['login_bg_color'] ?? '#111827';
                     </a>
                 </div>
             </div>
+            <?php endif; ?>
 
             <a href="/admin/reports" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/reports') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="bar-chart-3" class="w-4.5 h-4.5"></i> Reports
@@ -217,41 +240,57 @@ $adminSidebarColor = $adminSettings['login_bg_color'] ?? '#111827';
                 <i data-lucide="shield" class="w-4.5 h-4.5"></i> Users & Roles
             </a>
 
+            <?php if (canSeeMenu('settings')): ?>
             <a href="/admin/settings" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/settings') && !str_contains(Request::uri(), '/admin/settings/cities') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="settings" class="w-4.5 h-4.5"></i> Settings
             </a>
+            <?php endif; ?>
+            <?php if (canSeeMenu('cities')): ?>
             <a href="/admin/settings/cities" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/settings/cities') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="map-pin" class="w-4 h-4"></i> Cities
             </a>
+            <?php endif; ?>
             <a href="/admin/settings/make-logs" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/settings/make-logs') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="workflow" class="w-4 h-4"></i> Make.com Logs
             </a>
+            <?php if (canSeeMenu('seo')): ?>
             <a href="/admin/seo" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/seo') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="search" class="w-4 h-4"></i> SEO & Meta
             </a>
+            <?php endif; ?>
+            <?php if (canSeeMenu('sitemap')): ?>
             <a href="/admin/sitemap" class="sidebar-link flex items-center gap-3 pl-11 pr-3 py-2 rounded-lg text-sm <?= str_contains(Request::uri(), '/admin/sitemap') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="file-code" class="w-4 h-4"></i> Sitemap
             </a>
+            <?php endif; ?>
 
             <a href="/admin/blogs" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/blogs') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="pen-line" class="w-4.5 h-4.5"></i> Blog
             </a>
 
+            <?php if (canSeeMenu('shipping')): ?>
             <a href="/admin/shipping" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/shipping') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="truck" class="w-4.5 h-4.5"></i> Shipping Fees
             </a>
+            <?php endif; ?>
 
+            <?php if (canSeeMenu('social-media')): ?>
             <a href="/admin/social-media" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/social-media') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="share-2" class="w-4.5 h-4.5"></i> Social Media
             </a>
+            <?php endif; ?>
 
+            <?php if (canSeeMenu('api-integrations')): ?>
             <a href="/admin/api-integrations" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/api-integrations') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="plug" class="w-4.5 h-4.5"></i> API Integrations
             </a>
+            <?php endif; ?>
 
+            <?php if (canSeeMenu('commissions')): ?>
             <a href="/admin/commissions" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/commissions') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="coins" class="w-4.5 h-4.5"></i> Commissions
             </a>
+            <?php endif; ?>
 
             <a href="/admin/referrals" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm <?= isActive('/admin/referrals') ? 'active text-amber-400' : 'hover:text-white' ?>">
                 <i data-lucide="users-round" class="w-4.5 h-4.5"></i> Affiliates

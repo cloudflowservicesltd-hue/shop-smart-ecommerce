@@ -42,6 +42,14 @@ class AdminUserController extends BaseController
         if (!Auth::isSuperAdmin() && $data['role'] === 'super_admin') {
             $data['role'] = 'admin';
         }
+        // Save menu permissions (JSON array) for admin/manager users
+        $menuPerms = Request::post('menu_perms', []);
+        if (is_array($menuPerms)) {
+            $menuPermsJson = json_encode($menuPerms);
+        } else {
+            $menuPermsJson = '[]';
+        }
+        $data['menu_permissions'] = $menuPermsJson;
         $password = Request::post('password', '');
         if ($password) {
             $data['password'] = password_hash($password, PASSWORD_DEFAULT);
