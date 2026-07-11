@@ -1,1 +1,0 @@
-<?php $_API_BASE_URI = '/api/payments/callback/intasend'; require __DIR__ . '/../../router.php';

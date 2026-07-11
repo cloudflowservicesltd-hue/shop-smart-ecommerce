@@ -1,1 +1,0 @@
-<?php $_API_BASE_URI = '/api/checkout/stripe-success'; require __DIR__ . '/../router.php';

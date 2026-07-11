@@ -8,6 +8,15 @@
     RewriteCond %{HTTP:Authorization} ^(.*)
     RewriteRule .* - [e=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+    # ═══════════════════════════════════════════════════════════════
+    # CRITICAL: Route ALL /api/* requests through index.php
+    # This prevents the web server from serving API paths as
+    # static files/directories (which would cause 403 errors).
+    # ALL API routing is handled by the PHP Router.
+    # ═══════════════════════════════════════════════════════════════
+    RewriteCond %{REQUEST_URI} ^/api/
+    RewriteRule ^(.*)$ index.php [QSA,L]
+
     # Serve existing files directly (static assets)
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteRule ^ - [L]

@@ -1137,9 +1137,8 @@ try {
                 headers: apiHeaders(),
                 body: fd
             }).then(function(data) {
-                posLogToConsole('CHECKOUT_SUCCESS', { order_id: data.order_id, order_number: data.order_number });
-
                 if (data.success) {
+                    posLogToConsole('CHECKOUT_SUCCESS', { order_id: data.order_id, order_number: data.order_number });
                     closePayment();
                     showReceipt({
                         orderNum: orderNum,
@@ -1160,6 +1159,7 @@ try {
                     loadCommission();
                     loadHeldCount();
                 } else {
+                    posLogToConsole('CHECKOUT_FAIL', { error: data.error || 'Unknown error' });
                     posShowError('Checkout failed', data.error || 'Unknown error');
                 }
             }).catch(function(err) {

@@ -1,1 +1,0 @@
-<?php $_API_BASE_URI = '/api/checkout/create-order'; require __DIR__ . '/../router.php';

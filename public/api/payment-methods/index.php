@@ -1,1 +1,0 @@
-<?php $_API_BASE_URI = '/api/payment-methods'; require __DIR__ . '/../router.php';
