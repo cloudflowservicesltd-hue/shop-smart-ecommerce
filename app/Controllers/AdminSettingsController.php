@@ -224,6 +224,13 @@ class AdminSettingsController extends BaseController
             $upsert($afk, Request::post($afk, '0'), 'address');
         }
 
+        // Floating chat widget settings
+        $upsert('whatsapp_widget_enabled', Request::post('whatsapp_widget_enabled', '0'), 'general');
+        $upsert('whatsapp_number', Request::post('whatsapp_number', ''), 'general');
+        $upsert('whatsapp_message', Request::post('whatsapp_message', ''), 'general');
+        $upsert('telegram_widget_enabled', Request::post('telegram_widget_enabled', '0'), 'general');
+        $upsert('telegram_number', Request::post('telegram_number', ''), 'general');
+
         Session::flash('success', 'Settings saved successfully');
         Redirect::to('/admin/settings');
     }
