@@ -25,7 +25,7 @@ function canSeeMenu($menuSlug) {
     if ($currentUserRole === 'super_admin') return true;
     if ($currentUserRole === 'cashier') return false;
     // admin/manager role - check if granted
-    return in_array($menuSlug, $grantedMenus);
+    return is_array($grantedMenus) && in_array($menuSlug, $grantedMenus);
 }
 ?>
 <!DOCTYPE html>
