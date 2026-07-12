@@ -29,6 +29,10 @@ class AdminProductController extends BaseController
         if (empty($sku)) {
             $sku = 'SKU-' . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 8));
         }
+        $barcode = trim(Request::post('barcode', ''));
+        if (empty($barcode)) {
+            $barcode = 'BC-' . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 10));
+        }
         $data = [
             'name' => $name, 'slug' => $slug,
             'short_description' => Request::post('short_description', ''),
@@ -41,7 +45,7 @@ class AdminProductController extends BaseController
             'stock_quantity' => (int)Request::post('stock_quantity', 0),
             'low_stock_threshold' => (int)Request::post('low_stock_threshold', 10),
             'sku' => $sku,
-            'barcode' => Request::post('barcode', ''),
+            'barcode' => $barcode,
             'weight' => Request::post('weight') ? (float)Request::post('weight') : null,
             'supplier' => Request::post('supplier', ''),
             'product_status' => Request::post('product_status', 'active'),
@@ -106,6 +110,10 @@ class AdminProductController extends BaseController
         if (empty($sku)) {
             $sku = 'SKU-' . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 8));
         }
+        $barcode = trim(Request::post('barcode', ''));
+        if (empty($barcode)) {
+            $barcode = 'BC-' . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 10));
+        }
         $data = [
             'name' => $name,
             'short_description' => Request::post('short_description', ''),
@@ -118,7 +126,7 @@ class AdminProductController extends BaseController
             'stock_quantity' => (int)Request::post('stock_quantity', 0),
             'low_stock_threshold' => (int)Request::post('low_stock_threshold', 10),
             'sku' => $sku,
-            'barcode' => Request::post('barcode', ''),
+            'barcode' => $barcode,
             'weight' => Request::post('weight') ? (float)Request::post('weight') : null,
             'supplier' => Request::post('supplier', ''),
             'product_status' => Request::post('product_status', 'active'),
