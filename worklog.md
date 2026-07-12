@@ -470,3 +470,29 @@ Stage Summary:
 - Each product variant can now have its own image (admin upload + customer display)
 - Files modified: hero-slides.php, product-form.php, AdminProductController.php, product-detail.php, routes/web.php
 - Pushed to GitHub: 5408437
+---
+Task ID: 2
+Agent: Main
+Task: Refactor Mailer.php with 13 anti-spam and reliability improvements
+
+Work Log:
+- Applied all 13 suggested improvements to app/Core/Mailer.php
+- #1: Changed SMTPAutoTLS from false to true
+- #2: Removed X-Originating-IP custom header
+- #3: Removed X-Sender custom header
+- #4: Removed custom Message-ID override
+- #5: Removed SMTPOptions with verify_peer=false
+- #6: Added $mail->Sender = $fromEmail for proper envelope sender
+- #7: Added $mail->Hostname = $domain for correct EHLO
+- #8: Added $mail->SMTPKeepAlive = true for bulk sends
+- #9: Skipped debug mode (would spam error_log in production)
+- #10: Fixed config cache — changed from local static $cached to class property self::$configCache so saveConfig() can properly invalidate it
+- #11: Added filter_var validation for Reply-To before adding
+- #12: Added $mail->Encoding = PHPMailer::ENCODING_BASE64
+- #13: Added <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> in wrapHtmlBody()
+- Improved 550 SPAM error message to mention SPF/DKIM/DMARC/PTR/Exim logs
+
+Stage Summary:
+- Mailer.php fully refactored with all 13 improvements
+- Config cache bug fixed (settings now take effect immediately after save)
+- Pushed to GitHub: 6e4bc70
