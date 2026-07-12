@@ -389,3 +389,23 @@ Stage Summary:
 - Slug is now auto-filled from category name (both JS frontend and PHP backend)
 - Admin images (categories + brands) no longer have double-slash paths
 - Pushed as commit 516729c
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix SMTP 550 SPAM rejection error
+
+Work Log:
+- Analyzed Mailer.php — found `Precedence: bulk` and `X-Auto-Response-Suppress: All` were being added to ALL emails including transactional ones
+- SpamAssassin scores `Precedence: bulk` at +0.6 without a matching `List-Unsubscribe` header — likely pushing emails over the spam threshold
+- Removed `Precedence: bulk` and `X-Auto-Response-Suppress: All` from `sendViaSMTP()` (single sends)
+- Moved `Precedence: bulk` + `List-Unsubscribe` to `sendBulk()` method only (where bulk headers actually belong)
+- Changed `X-Mailer` from empty string to `'ShopSmart Mailer'` (empty X-Mailer looks suspicious to spam filters)
+- Added `X-Sender` and `X-Originating-IP` headers for better SPF alignment on shared hosting
+- Improved error diagnostic message with step-by-step cPanel instructions
+
+Stage Summary:
+- 1 file changed: app/Core/Mailer.php
+- Transactional emails (orders, password reset, welcome) no longer carry bulk-mail headers
+- If 550 SPAM persists, root cause is the SMTP username not matching the domain — user needs to create noreply@cloudonehost.top in cPanel
+- Pushed as commit 0b2c27c
