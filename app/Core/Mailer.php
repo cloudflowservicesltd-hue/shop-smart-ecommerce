@@ -24,6 +24,9 @@ class Mailer
     /** Last SMTP error message for diagnostics. */
     private static ?string $lastSmtpError = null;
 
+    /** Cached resolved config — class property so saveConfig() can clear it. */
+    private static ?array $configCache = null;
+
     // ──────────────────────────────────────────────
     //  PUBLIC: Send email (with automatic fallback)
     // ──────────────────────────────────────────────
@@ -86,12 +89,12 @@ class Mailer
             $mail->isHTML($isHtml);
             $mail->AltBody = self::htmlToText($body);
 
-            // Anti-spam: keep headers minimal for transactional emails.
-            // Avoid Precedence:bulk (SpamAssassin +0.6) and X-Auto-Response-Suppress on single sends.
+            // Minimal headers for transactional emails — avoid anything that triggers SpamAssassin
             $mail->addCustomHeader('X-Priority', '3');
             $mail->addCustomHeader('X-MS-Priority', 'Normal');
 
-            if ($replyTo) {
+            // Validate reply-to before adding
+            if ($replyTo && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
                 $mail->addReplyTo($replyTo);
             }
 
@@ -134,7 +137,7 @@ class Mailer
         $headers[] = "Content-Type: " . ($isHtml ? 'text/html; charset=UTF-8' : 'text/plain; charset=UTF-8');
         $headers[] = "X-Mailer: ShopSmart E-Commerce";
 
-        if ($replyTo) {
+        if ($replyTo && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
             $headers[] = "Reply-To: $replyTo";
         }
 
@@ -463,8 +466,8 @@ class Mailer
                         $result['error'] = 'Gmail rejected the email as spam. Use an App Password (not your regular password). If the From address is a different domain, Gmail will reject it. Error: ' . $errInfo;
                     } else {
                         $result['error'] = 'Your hosting SMTP server classified the email as SPAM (550). '
-                            . 'Fix: Go to your cPanel → Email Accounts → create "noreply@cloudonehost.top" → use that email as BOTH the SMTP Username and SMTP Password in your mail settings. '
-                            . 'The From email is already auto-forced to match your SMTP username. '
+                            . 'This is a SERVER-SIDE issue — check: SPF record, DKIM signing (cPanel → Email Deliverability), DMARC record, PTR (reverse DNS), and Exim logs: `grep "classified as SPAM" /var/log/exim_mainlog`. '
+                            . 'Also ensure the SMTP username is a real mailbox on this server (e.g. noreply@cloudonehost.top). '
                             . 'Error: ' . $errInfo;
                     }
                 } elseif (strpos($errLower, 'authentication') !== false || strpos($errLower, 'auth') !== false) {
@@ -563,7 +566,8 @@ class Mailer
                 ]);
             }
         }
-        // Clear cached config and reset SMTP status so it gets re-tested
+        // Clear all cached state so new settings take effect immediately
+        self::$configCache = null;
         self::resetInstance();
         self::$smtpWorks = null;
     }
@@ -611,25 +615,24 @@ class Mailer
             $mail->SMTPSecure = '';
         }
 
-        $mail->SMTPAutoTLS = false;
+        // #1: Enable AutoTLS — let PHPMailer negotiate the best TLS upgrade
+        $mail->SMTPAutoTLS = true;
+
         $mail->Timeout     = 15;  // 15 seconds — don't hang too long
         $mail->CharSet     = 'UTF-8';
 
-        // ── Anti-spam headers ──
-        $domain = parse_url('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'), PHP_URL_HOST) ?: 'localhost';
-        $mail->XMailer  = 'ShopSmart Mailer';
-        $mail->MessageID = '<' . bin2hex(random_bytes(16)) . '@' . $domain . '>';
-        $mail->addCustomHeader('X-Sender', $config['username'] ?: '');
-        $mail->addCustomHeader('X-Originating-IP', $_SERVER['SERVER_ADDR'] ?? '127.0.0.1');
+        // #12: Use Base64 encoding for better compatibility
+        $mail->Encoding = PHPMailer::ENCODING_BASE64;
 
-        // Disable SSL peer verification (shared hosting friendly)
-        $mail->SMTPOptions = [
-            'ssl' => [
-                'verify_peer'       => false,
-                'verify_peer_name'  => false,
-                'allow_self_signed' => true,
-            ],
-        ];
+        // #7: Set proper hostname for EHLO/HELO
+        $domain = parse_url('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'), PHP_URL_HOST) ?: 'localhost';
+        $mail->Hostname = $domain;
+
+        // Minimal X-Mailer — don't over-brand
+        $mail->XMailer = 'ShopSmart Mailer';
+
+        // #8: Keep SMTP connection alive for bulk sends within same request
+        $mail->SMTPKeepAlive = true;
 
         // Set From address — MUST match the SMTP authenticated username to avoid spam rejection
         $fromEmail = $config['from_email'] ?: '';
@@ -648,6 +651,8 @@ class Mailer
 
         if (!empty($fromEmail)) {
             $mail->setFrom($fromEmail, $fromName);
+            // #6: Set envelope sender (bounce address)
+            $mail->Sender = $fromEmail;
         }
 
         self::$mailer = $mail;
@@ -664,11 +669,13 @@ class Mailer
 
     /**
      * Get resolved config (DB settings override .env settings).
+     * Uses class property $configCache so saveConfig() can invalidate it.
      */
     private static function getResolvedConfig(): array
     {
-        static $cached = null;
-        if ($cached !== null) return $cached;
+        if (self::$configCache !== null) {
+            return self::$configCache;
+        }
 
         $config = require ROOT_PATH . '/config/app.php';
         $mc = $config['mail'];
@@ -684,7 +691,7 @@ class Mailer
             }
         }
 
-        $cached = [
+        self::$configCache = [
             'host'       => !empty($db['mail_host']) ? $db['mail_host'] : $mc['host'],
             'port'       => !empty($db['mail_port']) ? (int)$db['mail_port'] : $mc['port'],
             'username'   => !empty($db['mail_username']) ? $db['mail_username'] : $mc['username'],
@@ -693,7 +700,7 @@ class Mailer
             'from_name'  => !empty($db['mail_from_name']) ? $db['mail_from_name'] : $mc['from_name'],
             'from_email' => !empty($db['mail_from_email']) ? $db['mail_from_email'] : $mc['from_email'],
         ];
-        return $cached;
+        return self::$configCache;
     }
 
     /**
@@ -714,6 +721,7 @@ class Mailer
             . "<html lang=\"en\" xmlns=\"http://www.w3.org/1999/xhtml\">\n"
             . "<head>\n"
             . "  <meta charset=\"UTF-8\">\n"
+            . "  <meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">\n"
             . "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
             . "  <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n"
             . "  <title>" . $storeName . "</title>\n"
