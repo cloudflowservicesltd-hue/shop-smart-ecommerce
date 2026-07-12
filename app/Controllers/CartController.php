@@ -16,15 +16,19 @@ class CartController extends BaseController
         $cartItems = [];
         $subtotal = 0;
         if (Auth::check()) {
-            $cartItems = Database::select("SELECT c.*, p.name, p.price, p.discount_price, p.slug, (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = 1) as image, b.name as brand_name FROM cart c JOIN products p ON c.product_id = p.id LEFT JOIN brands b ON p.brand_id = b.id WHERE c.user_id = ?", [Auth::id()]);
+            $cartItems = Database::select("SELECT c.*, p.name, p.price, p.discount_price, p.slug, (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = 1) as image, b.name as brand_name, v.variant_name, v.price as variant_price, v.stock_quantity as variant_stock FROM cart c JOIN products p ON c.product_id = p.id LEFT JOIN brands b ON p.brand_id = b.id LEFT JOIN product_variants v ON c.variant_id = v.id WHERE c.user_id = ?", [Auth::id()]);
         } else {
-            $cartItems = Database::select("SELECT c.*, p.name, p.price, p.discount_price, p.slug, (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = 1) as image, b.name as brand_name FROM cart c JOIN products p ON c.product_id = p.id LEFT JOIN brands b ON p.brand_id = b.id WHERE c.session_id = ?", [session_id()]);
+            $cartItems = Database::select("SELECT c.*, p.name, p.price, p.discount_price, p.slug, (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = 1) as image, b.name as brand_name, v.variant_name, v.price as variant_price, v.stock_quantity as variant_stock FROM cart c JOIN products p ON c.product_id = p.id LEFT JOIN brands b ON p.brand_id = b.id LEFT JOIN product_variants v ON c.variant_id = v.id WHERE c.session_id = ?", [session_id()]);
         }
         foreach ($cartItems as &$item) {
-            $effectivePrice = $item['price'];
-            if (!empty($item['discount_price']) && $item['discount_price'] < $item['price']) {
+            // Use variant price if available, else product price/discount
+            if (!empty($item['variant_price'])) {
+                $effectivePrice = (float)$item['variant_price'];
+            } elseif (!empty($item['discount_price']) && $item['discount_price'] < $item['price']) {
                 $item['original_price'] = $item['price'];
-                $effectivePrice = $item['discount_price'];
+                $effectivePrice = (float)$item['discount_price'];
+            } else {
+                $effectivePrice = (float)$item['price'];
             }
             $item['price'] = $effectivePrice;
             $item['subtotal'] = $effectivePrice * $item['quantity'];
@@ -92,24 +96,39 @@ class CartController extends BaseController
     public function add(): void
     {
         $productId = (int)Request::post('product_id', 0);
+        $variantId = Request::post('variant_id') ? (int)Request::post('variant_id') : null;
         $qty = (int)Request::post('quantity', 1);
         if ($productId <= 0) Redirect::back();
 
         // Verify product is available for purchase
         $product = Database::selectOne("SELECT * FROM products WHERE id = ? AND is_active = 1 AND (product_status IS NULL OR product_status IN ('active','out_of_stock_returning'))", [$productId]);
-        if (!$product || ($product['stock_quantity'] ?? 0) <= 0 || ($product['product_status'] ?? 'active') !== 'active') { Session::flash('error', 'This product is not available for purchase.'); Redirect::back(); }
+        if (!$product || ($product['product_status'] ?? 'active') !== 'active') { Session::flash('error', 'This product is not available for purchase.'); Redirect::back(); }
 
+        // If variant, check variant stock and get variant price
+        $variant = null;
+        if ($variantId) {
+            $variant = Database::selectOne("SELECT * FROM product_variants WHERE id = ? AND product_id = ? AND is_active = 1", [$variantId, $productId]);
+            if (!$variant || ($variant['stock_quantity'] ?? 0) <= 0) { Session::flash('error', 'This variant is out of stock.'); Redirect::back(); }
+            if ($qty > $variant['stock_quantity']) $qty = $variant['stock_quantity'];
+        } else {
+            if (($product['stock_quantity'] ?? 0) <= 0) { Session::flash('error', 'This product is out of stock.'); Redirect::back(); }
+            if ($qty > $product['stock_quantity']) $qty = $product['stock_quantity'];
+        }
+
+        // Check for existing cart item (same product + same variant)
+        $variantCheck = $variantId ? " AND variant_id = $variantId" : " AND (variant_id IS NULL OR variant_id = 0)";
         $existing = Auth::check()
-            ? Database::selectOne("SELECT * FROM cart WHERE user_id = ? AND product_id = ?", [Auth::id(), $productId])
-            : Database::selectOne("SELECT * FROM cart WHERE session_id = ? AND product_id = ?", [session_id(), $productId]);
+            ? Database::selectOne("SELECT * FROM cart WHERE user_id = ? AND product_id = ?$variantCheck", [Auth::id(), $productId])
+            : Database::selectOne("SELECT * FROM cart WHERE session_id = ? AND product_id = ?$variantCheck", [session_id(), $productId]);
 
         if ($existing) {
             $newQty = $existing['quantity'] + $qty;
-            Auth::check()
-                ? Database::update('cart', ['quantity' => $newQty, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$existing['id']])
-                : Database::update('cart', ['quantity' => $newQty, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$existing['id']]);
+            // Cap at variant or product stock
+            if ($variantId && $variant && $newQty > $variant['stock_quantity']) $newQty = $variant['stock_quantity'];
+            elseif (!$variantId && $newQty > $product['stock_quantity']) $newQty = $product['stock_quantity'];
+            Database::update('cart', ['quantity' => $newQty, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$existing['id']]);
         } else {
-            $data = ['product_id' => $productId, 'quantity' => $qty, 'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s')];
+            $data = ['product_id' => $productId, 'variant_id' => $variantId, 'quantity' => $qty, 'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s')];
             if (Auth::check()) $data['user_id'] = Auth::id();
             else $data['session_id'] = session_id();
             Database::insert('cart', $data);

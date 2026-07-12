@@ -47,7 +47,7 @@ class CheckoutPageController extends BaseController
      */
     protected function loadCheckoutData(): array
     {
-        $cartItems = Database::select("SELECT c.*, p.name, p.price, p.discount_price, p.slug, p.stock_quantity, (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = 1) as image FROM cart c JOIN products p ON c.product_id = p.id WHERE c.user_id = ?", [Auth::id()]);
+        $cartItems = Database::select("SELECT c.*, p.name, p.price, p.discount_price, p.slug, p.stock_quantity, (SELECT image_path FROM product_images WHERE product_id = p.id AND is_primary = 1) as image, v.variant_name, v.price as variant_price, v.stock_quantity as variant_stock FROM cart c JOIN products p ON c.product_id = p.id LEFT JOIN product_variants v ON c.variant_id = v.id WHERE c.user_id = ?", [Auth::id()]);
         if (empty($cartItems)) {
             // Check if this is an API request (don't redirect, return empty)
             $uri = Request::uri();
@@ -59,9 +59,13 @@ class CheckoutPageController extends BaseController
 
         $subtotal = 0;
         foreach ($cartItems as &$item) {
-            $effectivePrice = $item['price'];
-            if (!empty($item['discount_price']) && $item['discount_price'] < $item['price']) {
-                $effectivePrice = $item['discount_price'];
+            // Use variant price if available, else product price/discount
+            if (!empty($item['variant_price'])) {
+                $effectivePrice = (float)$item['variant_price'];
+            } elseif (!empty($item['discount_price']) && $item['discount_price'] < $item['price']) {
+                $effectivePrice = (float)$item['discount_price'];
+            } else {
+                $effectivePrice = (float)$item['price'];
             }
             $item['price'] = $effectivePrice;
             $item['subtotal'] = $effectivePrice * $item['quantity'];
@@ -194,12 +198,19 @@ class CheckoutPageController extends BaseController
                 'order_id' => $orderId,
                 'product_id' => $item['product_id'],
                 'product_name' => $item['name'],
+                'variant_name' => $item['variant_name'] ?? null,
                 'quantity' => $item['quantity'],
                 'price' => $item['price'],
                 'total' => $item['price'] * $item['quantity'],
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
-            Database::update('products', ['stock_quantity' => $item['stock_quantity'] - $item['quantity']], 'id = ?', [$item['product_id']]);
+            if (!empty($item['variant_id'])) {
+                Database::update('product_variants', ['stock_quantity' => (($item['variant_stock'] ?? 0) - $item['quantity'])], 'id = ?', [$item['variant_id']]);
+                $totalStock = Database::selectOne("SELECT COALESCE(SUM(stock_quantity), 0) as total FROM product_variants WHERE product_id = ? AND is_active = 1", [$item['product_id']])['total'];
+                Database::update('products', ['stock_quantity' => (int)$totalStock], 'id = ?', [$item['product_id']]);
+            } else {
+                Database::update('products', ['stock_quantity' => $item['stock_quantity'] - $item['quantity']], 'id = ?', [$item['product_id']]);
+            }
         }
 
         Database::delete('cart', 'user_id = ?', [Auth::id()]);
@@ -411,12 +422,19 @@ class CheckoutPageController extends BaseController
                 'order_id' => $orderId,
                 'product_id' => $item['product_id'],
                 'product_name' => $item['name'],
+                'variant_name' => $item['variant_name'] ?? null,
                 'quantity' => $item['quantity'],
                 'price' => $item['price'],
                 'total' => $item['price'] * $item['quantity'],
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
-            Database::update('products', ['stock_quantity' => $item['stock_quantity'] - $item['quantity']], 'id = ?', [$item['product_id']]);
+            if (!empty($item['variant_id'])) {
+                Database::update('product_variants', ['stock_quantity' => (($item['variant_stock'] ?? 0) - $item['quantity'])], 'id = ?', [$item['variant_id']]);
+                $ts = Database::selectOne("SELECT COALESCE(SUM(stock_quantity), 0) as total FROM product_variants WHERE product_id = ? AND is_active = 1", [$item['product_id']])['total'];
+                Database::update('products', ['stock_quantity' => (int)$ts], 'id = ?', [$item['product_id']]);
+            } else {
+                Database::update('products', ['stock_quantity' => $item['stock_quantity'] - $item['quantity']], 'id = ?', [$item['product_id']]);
+            }
         }
 
         Database::delete('cart', 'user_id = ?', [Auth::id()]);

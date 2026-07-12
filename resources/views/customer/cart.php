@@ -38,6 +38,9 @@
                             </a>
                             <div class="min-w-0">
                                 <a href="/product/<?= e($item['slug']) ?>" class="font-semibold text-gray-900 text-sm hover:text-amber-600 transition-colors line-clamp-2"><?= e($item['name']) ?></a>
+                                <?php if (!empty($item['variant_name'])): ?>
+                                <span class="inline-block text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md mt-1"><?= e($item['variant_name']) ?></span>
+                                <?php endif; ?>
                                 <?php if (!empty($item['brand_name'])): ?>
                                 <p class="text-xs text-gray-400 mt-0.5"><?= e($item['brand_name']) ?></p>
                                 <?php endif; ?>

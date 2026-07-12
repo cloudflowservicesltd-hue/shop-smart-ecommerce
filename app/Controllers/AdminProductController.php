@@ -33,6 +33,7 @@ class AdminProductController extends BaseController
         if (empty($barcode)) {
             $barcode = 'BC-' . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 10));
         }
+        $hasVariants = Request::post('has_variants') ? 1 : 0;
         $data = [
             'name' => $name, 'slug' => $slug,
             'short_description' => Request::post('short_description', ''),
@@ -51,9 +52,13 @@ class AdminProductController extends BaseController
             'product_status' => Request::post('product_status', 'active'),
             'is_active' => Request::post('is_active') ? 1 : 0,
             'is_featured' => Request::post('is_featured') ? 1 : 0,
+            'has_variants' => $hasVariants,
             'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'),
         ];
         $productId = Database::insert('products', $data);
+
+        // Save variants
+        $this->saveVariants($productId);
 
         // Handle multiple image uploads
         if (isset($_FILES['images']) && $_FILES['images']['error'][0] !== UPLOAD_ERR_NO_FILE) {
@@ -114,6 +119,7 @@ class AdminProductController extends BaseController
         if (empty($barcode)) {
             $barcode = 'BC-' . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 10));
         }
+        $hasVariants = Request::post('has_variants') ? 1 : 0;
         $data = [
             'name' => $name,
             'short_description' => Request::post('short_description', ''),
@@ -132,9 +138,13 @@ class AdminProductController extends BaseController
             'product_status' => Request::post('product_status', 'active'),
             'is_active' => Request::post('is_active') ? 1 : 0,
             'is_featured' => Request::post('is_featured') ? 1 : 0,
+            'has_variants' => $hasVariants,
             'updated_at' => date('Y-m-d H:i:s'),
         ];
         Database::update('products', $data, 'id = ?', [$id]);
+
+        // Save variants (delete old, insert new)
+        $this->saveVariants($id);
 
         $image = FileUpload::handle('image');
         if ($image) {
@@ -292,5 +302,52 @@ class AdminProductController extends BaseController
 
         Session::flash('success', 'Product duplicated successfully. The copy is set to draft status.');
         Redirect::to('/admin/products/' . $newId . '/edit');
+    }
+
+    /**
+     * Save product variants from POST data.
+     * Deletes all existing variants for the product, then inserts new ones.
+     */
+    private function saveVariants(int $productId): void
+    {
+        // Always delete existing variants and re-insert (simpler than tracking adds/edits/deletes)
+        Database::delete('product_variants', 'product_id = ?', [$productId]);
+
+        $names = Request::post('variant_name', []);
+        if (empty($names) || !is_array($names)) return;
+
+        $skus = Request::post('variant_sku', []);
+        $prices = Request::post('variant_price', []);
+        $costPrices = Request::post('variant_cost_price', []);
+        $stocks = Request::post('variant_stock', []);
+
+        foreach ($names as $i => $name) {
+            $name = trim($name);
+            if (empty($name)) continue;
+
+            $sku = trim($skus[$i] ?? '');
+            if (empty($sku)) {
+                $sku = 'SKU-' . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 8));
+            }
+            $price = !empty($prices[$i]) ? (float)$prices[$i] : null;
+            $costPrice = !empty($costPrices[$i]) ? (float)$costPrices[$i] : 0;
+            $stock = (int)($stocks[$i] ?? 0);
+
+            Database::insert('product_variants', [
+                'product_id' => $productId,
+                'variant_name' => $name,
+                'sku' => $sku,
+                'price' => $price,
+                'cost_price' => $costPrice,
+                'stock_quantity' => $stock,
+                'is_active' => 1,
+                'sort_order' => $i,
+                'created_at' => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        // Auto-sum variant stock into main product stock
+        $totalStock = Database::selectOne("SELECT COALESCE(SUM(stock_quantity), 0) as total FROM product_variants WHERE product_id = ? AND is_active = 1", [$productId])['total'];
+        Database::update('products', ['stock_quantity' => (int)$totalStock], 'id = ?', [$productId]);
     }
 }

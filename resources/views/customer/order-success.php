@@ -90,7 +90,7 @@ $storePhone = $siteSettings['store_phone'] ?? '';
                             <td class="py-2.5">
                                 <div class="flex items-center gap-2.5">
                                     <img src="<?= $item['image'] ?? '/uploads/no-image-sm.jpg' ?>" alt="" class="w-9 h-9 rounded-lg object-cover bg-gray-50 shrink-0">
-                                    <span class="font-medium text-gray-800 truncate max-w-[150px]"><?= e($item['product_name']) ?></span>
+                                    <span class="font-medium text-gray-800 truncate max-w-[150px]"><?= e($item['product_name']) ?><?php if (!empty($item['variant_name'])): ?> <span class="text-xs text-amber-700 font-normal">(<?= e($item['variant_name']) ?>)</span><?php endif; ?></span>
                                 </div>
                             </td>
                             <td class="py-2.5 text-center text-gray-500"><?= $item['quantity'] ?></td>

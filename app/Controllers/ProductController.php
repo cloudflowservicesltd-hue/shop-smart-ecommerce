@@ -122,6 +122,8 @@ class ProductController extends BaseController
         $avgRating = round($ratingData['avg'] ?? 0, 1);
         $reviewCount = (int)($ratingData['cnt'] ?? 0);
         $inWishlist = Auth::check() ? (bool)Database::selectOne("SELECT id FROM wishlists WHERE user_id = ? AND product_id = ?", [Auth::id(), $product['id']]) : false;
+        $variants = Database::select("SELECT * FROM product_variants WHERE product_id = ? AND is_active = 1 ORDER BY sort_order, id", [$product['id']]);
+        $product['variants'] = $variants;
 
         $storeName = getStoreName();
         $pageTitle = $product['name'] . ' - ' . $storeName;

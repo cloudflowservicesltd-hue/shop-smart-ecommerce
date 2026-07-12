@@ -10,7 +10,17 @@ $reviewCount = $reviewCount ?? 0;
 $inWishlist = $inWishlist ?? false;
 $primaryImage = $images[0]['image_path'] ?? "/uploads/no-image.jpg";
 $hasDiscount = !empty($product['discount_price']) && $product['discount_price'] < $product['price'];
-$finalPrice = $hasDiscount ? $product['discount_price'] : $product['price'];
+$variants = $product['variants'] ?? [];
+$hasVariants = ($product['has_variants'] ?? 0) == 1 && !empty($variants);
+// Calculate effective price
+if ($hasVariants) {
+    $variantPrices = array_filter(array_column($variants, 'price'));
+    $minVariantPrice = !empty($variantPrices) ? min($variantPrices) : $product['price'];
+    $finalPrice = $minVariantPrice;
+    $hasDiscount = false; // Discount is per-variant now
+} else {
+    $finalPrice = $hasDiscount ? $product['discount_price'] : $product['price'];
+}
 ?>
 
 <!-- Breadcrumbs -->
@@ -73,9 +83,25 @@ $finalPrice = $hasDiscount ? $product['discount_price'] : $product['price'];
                 </div>
                 <span class="text-sm text-gray-500"><?= number_format($avgRating, 1) ?> (<?= $reviewCount ?> reviews)</span>
                 <?php $pStatus = $product['product_status'] ?? 'active'; ?>
-                <?php if ($product['stock_quantity'] > 0 && $pStatus === 'active'): ?>
+                <?php
+                $displayStock = $product['stock_quantity'];
+                $variantInStock = true;
+                if ($hasVariants) {
+                    $anyInStock = false;
+                    foreach ($variants as $v) {
+                        if (($v['stock_quantity'] ?? 0) > 0) { $anyInStock = true; break; }
+                    }
+                    $variantInStock = $anyInStock;
+                }
+                $canBuy = ($displayStock > 0 || $variantInStock) && $pStatus === 'active';
+                if ($canBuy && !$hasVariants):
+                ?>
                 <span class="inline-flex items-center gap-1 text-sm text-amber-600 font-medium">
                     <span class="w-2 h-2 bg-amber-500 rounded-full pulse-dot"></span> In Stock
+                </span>
+                <?php elseif ($canBuy && $hasVariants): ?>
+                <span class="inline-flex items-center gap-1 text-sm text-amber-600 font-medium">
+                    <span class="w-2 h-2 bg-amber-500 rounded-full pulse-dot"></span> Select Options
                 </span>
                 <?php elseif ($pStatus === 'out_of_stock_returning'): ?>
                 <span class="inline-flex items-center gap-1 text-sm text-blue-600 font-medium">
@@ -88,12 +114,47 @@ $finalPrice = $hasDiscount ? $product['discount_price'] : $product['price'];
 
             <!-- Price -->
             <div class="mt-6 flex items-baseline gap-3">
-                <span class="text-3xl font-bold text-gray-900"><?= formatMoney($finalPrice) ?></span>
-                <?php if ($hasDiscount): ?>
+                <?php if ($hasVariants): ?>
+                <span id="variantPriceLabel" class="text-sm text-gray-500 font-medium">Starting from</span>
+                <?php endif; ?>
+                <span id="currentPrice" class="text-3xl font-bold text-gray-900"><?= formatMoney($finalPrice) ?></span>
+                <?php if (!$hasVariants && $hasDiscount): ?>
                 <span class="text-lg text-gray-400 line-through"><?= formatMoney($product['price']) ?></span>
                 <span class="bg-red-50 text-red-600 text-sm font-semibold px-2.5 py-1 rounded-lg">Save <?= formatMoney($product['price'] - $product['discount_price']) ?></span>
                 <?php endif; ?>
             </div>
+
+            <!-- Variant Selector -->
+            <?php if ($hasVariants): ?>
+            <div class="mt-6" id="variantSelectorSection">
+                <label class="text-sm font-medium text-gray-700 mb-2 block">Select: <span id="selectedVariantName" class="text-amber-600"></span></label>
+                <div class="flex flex-wrap gap-2" id="variantButtons">
+                    <?php foreach ($variants as $vi => $v): 
+                        $vPrice = !empty($v['price']) ? (float)$v['price'] : (float)$product['price'];
+                        $vStock = (int)($v['stock_quantity'] ?? 0);
+                        $vOutOfStock = $vStock <= 0;
+                    ?>
+                    <button type="button" onclick="selectVariant(<?= $v['id'] ?>, <?= $vPrice ?>, <?= $vStock ?>, '<?= e(addslashes($v['variant_name'])) ?>')"
+                        class="variant-btn px-4 py-2.5 rounded-xl border-2 text-sm font-medium transition-all <?= $vOutOfStock ? 'border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50' : 'border-gray-200 text-gray-700 hover:border-amber-400 hover:text-amber-700' ?> <?= $vi === 0 && !$vOutOfStock ? 'border-amber-500 text-amber-700 bg-amber-50' : '' ?>"
+                        data-variant-id="<?= $v['id'] ?>"
+                        data-price="<?= $vPrice ?>"
+                        data-stock="<?= $vStock ?>"
+                        <?= $vOutOfStock ? 'disabled' : '' ?>
+                        id="vbtn_<?= $v['id'] ?>">
+                        <?= e($v['variant_name']) ?>
+                        <?php if ($vPrice != $finalPrice): ?>
+                        <span class="block text-xs opacity-70"><?= formatMoney($vPrice) ?></span>
+                        <?php endif; ?>
+                        <?php if ($vOutOfStock): ?>
+                        <span class="block text-xs text-red-400">Sold out</span>
+                        <?php endif; ?>
+                    </button>
+                    <?php endforeach; ?>
+                </div>
+                <input type="hidden" name="variant_id" id="selectedVariantId" value="">
+                <p id="variantStockInfo" class="text-xs text-gray-400 mt-2"></p>
+            </div>
+            <?php endif; ?>
 
             <!-- Short Description -->
             <?php if (!empty($product['short_description'])): ?>
@@ -101,10 +162,11 @@ $finalPrice = $hasDiscount ? $product['discount_price'] : $product['price'];
             <?php endif; ?>
 
             <!-- Add to Cart / Actions -->
-            <?php if ($product['stock_quantity'] > 0 && $pStatus === 'active'): ?>
-            <form action="/cart/add" method="POST" class="mt-8 space-y-5">
+            <?php if ($canBuy): ?>
+            <form action="/cart/add" method="POST" class="mt-8 space-y-5" id="addToCartForm">
                 <?= csrf() ?>
                 <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
+                <input type="hidden" name="variant_id" id="cartVariantId" value="">
 
                 <!-- Quantity -->
                 <div>
@@ -113,7 +175,7 @@ $finalPrice = $hasDiscount ? $product['discount_price'] : $product['price'];
                         <button type="button" onclick="let i=document.getElementById('qty');if(i.value>1)i.value=parseInt(i.value)-1;document.getElementById('qtyHidden').value=i.value" class="px-4 py-2.5 text-gray-500 hover:bg-gray-50 transition-colors">
                             <i data-lucide="minus" class="w-4 h-4"></i>
                         </button>
-                        <input type="number" id="qty" name="quantity" value="1" min="1" max="<?= $product['stock_quantity'] ?>" 
+                        <input type="number" id="qty" name="quantity" value="1" min="1" max="<?= $hasVariants ? 999 : $product['stock_quantity'] ?>" 
                                class="w-16 text-center border-x border-gray-200 py-2.5 text-sm font-medium focus:outline-none" 
                                onchange="document.getElementById('qtyHidden').value=this.value">
                         <button type="button" onclick="let i=document.getElementById('qty');let m=parseInt(i.max);if(parseInt(i.value)<m)i.value=parseInt(i.value)+1;document.getElementById('qtyHidden').value=i.value" class="px-4 py-2.5 text-gray-500 hover:bg-gray-50 transition-colors">
@@ -549,4 +611,53 @@ function showToast(msg, type) {
     requestAnimationFrame(() => { toast.style.opacity = '1'; toast.style.transform = 'translateY(0)'; });
     setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(2px)'; setTimeout(() => toast.remove(), 300); }, 2500);
 }
+
+// ── Variant Selection ──
+var hasVariants = <?= $hasVariants ? 'true' : 'false' ?>;
+var selectedVariantId = 0;
+var selectedVariantStock = 0;
+
+function selectVariant(id, price, stock, name) {
+    selectedVariantId = id;
+    selectedVariantStock = stock;
+    document.getElementById('selectedVariantName').textContent = name;
+    document.getElementById('selectedVariantId').value = id;
+    document.getElementById('cartVariantId').value = id;
+    document.getElementById('currentPrice').textContent = '<?= array_values(array_filter([$finalPrice]))[0] ?? '0' ?>'.replace(/[\d.,]+/, function(m) { return formatPriceJS(price); });
+    document.getElementById('qty').max = stock;
+    if (parseInt(document.getElementById('qty').value) > stock) document.getElementById('qty').value = Math.max(1, stock);
+    document.getElementById('qtyHidden').value = document.getElementById('qty').value;
+    document.getElementById('variantStockInfo').textContent = stock + ' available';
+    // Highlight selected button
+    document.querySelectorAll('.variant-btn').forEach(function(btn) {
+        btn.classList.remove('border-amber-500', 'text-amber-700', 'bg-amber-50');
+        btn.classList.add('border-gray-200', 'text-gray-700');
+    });
+    var activeBtn = document.getElementById('vbtn_' + id);
+    if (activeBtn) {
+        activeBtn.classList.add('border-amber-500', 'text-amber-700', 'bg-amber-50');
+        activeBtn.classList.remove('border-gray-200', 'text-gray-700');
+    }
+}
+
+function formatPriceJS(amount) {
+    return '<?= addslashes(formatMoney(0)) ?>'.replace(/[\d.,\s\w]+/, '').trim() + parseFloat(amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+// Intercept form submit to validate variant selection
+document.getElementById('addToCartForm')?.addEventListener('submit', function(e) {
+    if (hasVariants && !selectedVariantId) {
+        e.preventDefault();
+        showToast('Please select a variant first', 'error');
+        return false;
+    }
+});
+
+// Auto-select first available variant on page load
+<?php if ($hasVariants): ?>
+(function() {
+    var first = document.querySelector('.variant-btn:not([disabled])');
+    if (first) first.click();
+})();
+<?php endif; ?>
 </script>

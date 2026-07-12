@@ -138,6 +138,17 @@ try {
         INDEX `idx_event` (`event`),
         INDEX `idx_created` (`created_at`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    // ── Product Variants: expand existing table ──
+    try { $db->exec("ALTER TABLE `product_variants` ADD COLUMN `cost_price` DECIMAL(12,2) DEFAULT 0 AFTER `price`"); } catch (\Throwable $e) {}
+    try { $db->exec("ALTER TABLE `product_variants` ADD COLUMN `discount_price` DECIMAL(12,2) DEFAULT NULL AFTER `cost_price`"); } catch (\Throwable $e) {}
+    try { $db->exec("ALTER TABLE `product_variants` ADD COLUMN `barcode` VARCHAR(255) DEFAULT NULL AFTER `sku`"); } catch (\Throwable $e) {}
+    try { $db->exec("ALTER TABLE `product_variants` ADD COLUMN `weight` DECIMAL(12,2) DEFAULT NULL AFTER `barcode`"); } catch (\Throwable $e) {}
+    try { $db->exec("ALTER TABLE `product_variants` ADD COLUMN `is_active` TINYINT(1) NOT NULL DEFAULT 1 AFTER `stock_quantity`"); } catch (\Throwable $e) {}
+    try { $db->exec("ALTER TABLE `product_variants` ADD COLUMN `sort_order` INT NOT NULL DEFAULT 0 AFTER `is_active`"); } catch (\Throwable $e) {}
+    // ── Cart: add variant_id ──
+    try { $db->exec("ALTER TABLE `cart` ADD COLUMN `variant_id` INT UNSIGNED DEFAULT NULL AFTER `product_id`"); } catch (\Throwable $e) {}
+    // ── Order Items: add variant_name ──
+    try { $db->exec("ALTER TABLE `order_items` ADD COLUMN `variant_name` VARCHAR(255) DEFAULT NULL AFTER `product_name`"); } catch (\Throwable $e) {}
 } catch (\Throwable $e) {
     @file_put_contents(ROOT_PATH . '/storage/logs/pos-api.log', date('Y-m-d H:i:s') . " | SELF-HEAL ERROR: " . $e->getMessage() . "\n", FILE_APPEND);
 }
