@@ -86,11 +86,10 @@ class Mailer
             $mail->isHTML($isHtml);
             $mail->AltBody = self::htmlToText($body);
 
-            // Anti-spam priority & precedence headers
+            // Anti-spam: keep headers minimal for transactional emails.
+            // Avoid Precedence:bulk (SpamAssassin +0.6) and X-Auto-Response-Suppress on single sends.
             $mail->addCustomHeader('X-Priority', '3');
             $mail->addCustomHeader('X-MS-Priority', 'Normal');
-            $mail->addCustomHeader('X-Auto-Response-Suppress', 'All');
-            $mail->addCustomHeader('Precedence', 'bulk');
 
             if ($replyTo) {
                 $mail->addReplyTo($replyTo);
@@ -203,6 +202,11 @@ class Mailer
                     }
                     $mail->isHTML($isHtml);
                     $mail->AltBody = self::htmlToText($body);
+
+                    // Bulk mail headers (only for actual bulk sends)
+                    $domain = parse_url('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'), PHP_URL_HOST) ?: 'localhost';
+                    $mail->addCustomHeader('Precedence', 'bulk');
+                    $mail->addCustomHeader('List-Unsubscribe', 'mailto:unsubscribe@' . $domain);
 
                     foreach ($validEmails as $email) {
                         $mail->addBCC($email);
@@ -456,9 +460,12 @@ class Mailer
 
                 if (strpos($errLower, 'spam') !== false || strpos($errLower, 'data not accepted') !== false) {
                     if ($isGmail) {
-                        $result['error'] = 'Gmail rejected the email as spam. The From address is now forced to match your Gmail. If it persists, use an App Password. Error: ' . $errInfo;
+                        $result['error'] = 'Gmail rejected the email as spam. Use an App Password (not your regular password). If the From address is a different domain, Gmail will reject it. Error: ' . $errInfo;
                     } else {
-                        $result['error'] = 'Your SMTP server classified the email as spam. The From email has been auto-fixed to match your SMTP username. If this persists, create a proper email account (e.g. noreply@cloudonehost.top) in cPanel and use it as both SMTP username and From email. Error: ' . $errInfo;
+                        $result['error'] = 'Your hosting SMTP server classified the email as SPAM (550). '
+                            . 'Fix: Go to your cPanel → Email Accounts → create "noreply@cloudonehost.top" → use that email as BOTH the SMTP Username and SMTP Password in your mail settings. '
+                            . 'The From email is already auto-forced to match your SMTP username. '
+                            . 'Error: ' . $errInfo;
                     }
                 } elseif (strpos($errLower, 'authentication') !== false || strpos($errLower, 'auth') !== false) {
                     if ($isGmail) {
@@ -609,9 +616,11 @@ class Mailer
         $mail->CharSet     = 'UTF-8';
 
         // ── Anti-spam headers ──
-        $mail->XMailer  = '';
         $domain = parse_url('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'), PHP_URL_HOST) ?: 'localhost';
+        $mail->XMailer  = 'ShopSmart Mailer';
         $mail->MessageID = '<' . bin2hex(random_bytes(16)) . '@' . $domain . '>';
+        $mail->addCustomHeader('X-Sender', $config['username'] ?: '');
+        $mail->addCustomHeader('X-Originating-IP', $_SERVER['SERVER_ADDR'] ?? '127.0.0.1');
 
         // Disable SSL peer verification (shared hosting friendly)
         $mail->SMTPOptions = [
