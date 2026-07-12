@@ -25,6 +25,10 @@ class AdminProductController extends BaseController
     {
         $name = Request::post('name', '');
         $slug = strtolower(preg_replace('/[^a-z0-9]+/', '-', $name)) . '-' . time();
+        $sku = trim(Request::post('sku', ''));
+        if (empty($sku)) {
+            $sku = 'SKU-' . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 8));
+        }
         $data = [
             'name' => $name, 'slug' => $slug,
             'short_description' => Request::post('short_description', ''),
@@ -36,7 +40,7 @@ class AdminProductController extends BaseController
             'discount_price' => Request::post('discount_price') ? (float)Request::post('discount_price') : null,
             'stock_quantity' => (int)Request::post('stock_quantity', 0),
             'low_stock_threshold' => (int)Request::post('low_stock_threshold', 10),
-            'sku' => Request::post('sku', ''),
+            'sku' => $sku,
             'barcode' => Request::post('barcode', ''),
             'weight' => Request::post('weight') ? (float)Request::post('weight') : null,
             'supplier' => Request::post('supplier', ''),
@@ -98,6 +102,10 @@ class AdminProductController extends BaseController
     public function update($id)
     {
         $name = Request::post('name', '');
+        $sku = trim(Request::post('sku', ''));
+        if (empty($sku)) {
+            $sku = 'SKU-' . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 8));
+        }
         $data = [
             'name' => $name,
             'short_description' => Request::post('short_description', ''),
@@ -109,7 +117,7 @@ class AdminProductController extends BaseController
             'discount_price' => Request::post('discount_price') ? (float)Request::post('discount_price') : null,
             'stock_quantity' => (int)Request::post('stock_quantity', 0),
             'low_stock_threshold' => (int)Request::post('low_stock_threshold', 10),
-            'sku' => Request::post('sku', ''),
+            'sku' => $sku,
             'barcode' => Request::post('barcode', ''),
             'weight' => Request::post('weight') ? (float)Request::post('weight') : null,
             'supplier' => Request::post('supplier', ''),
