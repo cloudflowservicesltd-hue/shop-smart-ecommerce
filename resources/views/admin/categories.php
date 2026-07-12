@@ -16,8 +16,9 @@ $allCategories = Database::select("SELECT * FROM categories WHERE parent_id IS N
         <form method="POST" action="/admin/categories/store" enctype="multipart/form-data" class="space-y-4">
             <?= csrf() ?>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <input type="text" name="name" placeholder="Category Name" required class="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-                <input type="text" name="slug" placeholder="slug-name" required class="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <input type="text" name="name" id="addCatName" placeholder="Category Name" required class="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <input type="text" name="slug" id="addCatSlug" placeholder="auto-generated-from-name" class="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <p class="lg:col-span-2 text-xs text-gray-400">Slug is auto-generated from the name. Edit only if needed.</p>
                 <select name="parent_id" class="px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
                     <option value="">Parent (None)</option>
                     <?php foreach ($allCategories as $c): ?>
@@ -149,7 +150,7 @@ $allCategories = Database::select("SELECT * FROM categories WHERE parent_id IS N
                     <td class="px-4 py-3">
                         <div class="flex items-center gap-3">
                             <?php if ($c['image']): ?>
-                            <img src="/<?= e($c['image']) ?>" alt="<?= e($c['name']) ?>" class="w-8 h-8 rounded-lg object-cover bg-gray-100 shrink-0">
+                            <img src="<?= e($c['image']) ?: '/uploads/no-image-sm.jpg' ?>" alt="<?= e($c['name']) ?>" class="w-8 h-8 rounded-lg object-cover bg-gray-100 shrink-0">
                             <?php else: ?>
                             <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
                                 <i data-lucide="folder" class="w-4 h-4 text-gray-400"></i>
@@ -242,7 +243,31 @@ document.addEventListener('change', function(e) {
     }
 });
 
+// Auto-generate slug from name (add form)
+document.getElementById('addCatName').addEventListener('input', function() {
+    var slug = this.value.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    document.getElementById('addCatSlug').value = slug;
+});
+
+// Edit form: sync slug from name unless user manually edited slug
+var editSlugManuallyChanged = false;
+document.getElementById('editSlug').addEventListener('input', function() { editSlugManuallyChanged = true; });
+document.getElementById('editName').addEventListener('input', function() {
+    if (editSlugManuallyChanged) return;
+    var slug = this.value.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    document.getElementById('editSlug').value = slug;
+});
+
 function openEditForm(id, name, slug, description, parentId, isActive, sortOrder, image) {
+    editSlugManuallyChanged = false;
     var form = document.getElementById('editCategoryForm');
     document.getElementById('editName').value = name;
     document.getElementById('editSlug').value = slug;
@@ -254,7 +279,7 @@ function openEditForm(id, name, slug, description, parentId, isActive, sortOrder
     var preview = document.getElementById('editImagePreview');
     var previewImg = document.getElementById('editImageImg');
     if (image) {
-        previewImg.src = '/' + image;
+        previewImg.src = image;
         preview.classList.remove('hidden');
     } else {
         preview.classList.add('hidden');

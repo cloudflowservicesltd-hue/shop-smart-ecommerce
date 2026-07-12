@@ -145,7 +145,7 @@ $brands = Database::select("SELECT b.*, (SELECT COUNT(*) FROM products WHERE bra
                     <td class="px-4 py-3">
                         <div class="flex items-center gap-3">
                             <?php if ($b['logo']): ?>
-                            <img src="/<?= e($b['logo']) ?>" alt="<?= e($b['name']) ?>" class="w-8 h-8 rounded-lg object-cover bg-gray-100">
+                            <img src="<?= e($b['logo']) ?: '/uploads/no-image-sm.jpg' ?>" alt="<?= e($b['name']) ?>" class="w-8 h-8 rounded-lg object-cover bg-gray-100">
                             <?php else: ?>
                             <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
                                 <i data-lucide="tag" class="w-4 h-4 text-gray-400"></i>
@@ -254,7 +254,7 @@ function openEditModal(id, name, slug, description, isActive, logo) {
     var preview = document.getElementById('editLogoPreview');
     var previewImg = document.getElementById('editLogoImg');
     if (logo) {
-        previewImg.src = '/' + logo;
+        previewImg.src = logo;
         preview.classList.remove('hidden');
     } else {
         preview.classList.add('hidden');

@@ -13,9 +13,17 @@ class AdminCategoryController extends BaseController
 
     public function store()
     {
+        $name = trim(Request::post('name', ''));
+        $slug = trim(Request::post('slug', ''));
+        if (empty($slug)) {
+            $slug = strtolower(preg_replace('/[^a-z0-9\s-]/i', '', $name));
+            $slug = preg_replace('/\s+/', '-', $slug);
+            $slug = preg_replace('/-+/', '-', $slug);
+            $slug = trim($slug, '-');
+        }
         $data = [
-            'name' => Request::post('name', ''),
-            'slug' => Request::post('slug', ''),
+            'name' => $name,
+            'slug' => $slug,
             'description' => Request::post('description', ''),
             'parent_id' => Request::post('parent_id') ?: null,
             'is_active' => Request::post('is_active') ? 1 : 0,
