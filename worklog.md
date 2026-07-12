@@ -367,3 +367,25 @@ Stage Summary:
 - Fix: Removed entire `public/api/` directory + added .htaccess safeguard rule
 - All POS and commission routes now route through public/index.php → Router → Controllers
 - Commit: 77a685f "Fix POS API 403 errors - remove duplicate routing layer"
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Autofill category slug from name + fix images not loading
+
+Work Log:
+- Added `id="addCatName"` and `id="addCatSlug"` to admin category add form
+- Added JS event listener on name input to auto-generate slug in real-time (lowercase, spaces→hyphens, strip special chars)
+- Removed `required` from slug field — now optional with auto-generation
+- Added smart slug sync for edit form: auto-updates slug when name changes unless user manually edited the slug (tracked via `editSlugManuallyChanged` flag, reset on each `openEditForm()`)
+- Added server-side fallback in `AdminCategoryController::store()`: if slug is empty after trim, auto-generate from name using same logic
+- Fixed double-slash image path bug in `admin/categories.php`: `src="/<?= e($c['image']) ?>"` produced `//uploads/...` (protocol-relative URL interpreted as host `uploads`) → changed to `src="<?= e($c['image']) ?>"` 
+- Fixed same bug in `admin/brands.php`: `src="/<?= e($b['logo']) ?>"` → `src="<?= e($b['logo']) ?>"`
+- Fixed JS preview image bug in both files: `previewImg.src = '/' + image` → `previewImg.src = image`
+- Added fallback images for empty image paths using `?: '/uploads/no-image-sm.jpg'`
+
+Stage Summary:
+- 3 files changed: AdminCategoryController.php, admin/categories.php, admin/brands.php
+- Slug is now auto-filled from category name (both JS frontend and PHP backend)
+- Admin images (categories + brands) no longer have double-slash paths
+- Pushed as commit 516729c
