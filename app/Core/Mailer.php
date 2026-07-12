@@ -618,6 +618,17 @@ class Mailer
         // #1: Enable AutoTLS — let PHPMailer negotiate the best TLS upgrade
         $mail->SMTPAutoTLS = true;
 
+        // Shared hosting SSL: many cPanel servers use self-signed certs or
+        // misconfigured SSL chains. Keep verify_peer disabled to prevent
+        // connection failures. Remove ONLY if your SMTP has a valid CA cert.
+        $mail->SMTPOptions = [
+            'ssl' => [
+                'verify_peer'       => false,
+                'verify_peer_name'  => false,
+                'allow_self_signed' => true,
+            ],
+        ];
+
         $mail->Timeout     = 15;  // 15 seconds — don't hang too long
         $mail->CharSet     = 'UTF-8';
 
