@@ -97,6 +97,7 @@ $hasVariants = ($product['has_variants'] ?? 0) == 1 || !empty($existingVariants)
                                 <thead>
                                     <tr class="bg-gray-50 text-left">
                                         <th class="px-3 py-2 font-medium text-gray-600 rounded-tl-lg">Variant Name *</th>
+                                        <th class="px-3 py-2 font-medium text-gray-600">Image</th>
                                         <th class="px-3 py-2 font-medium text-gray-600">SKU</th>
                                         <th class="px-3 py-2 font-medium text-gray-600">Price</th>
                                         <th class="px-3 py-2 font-medium text-gray-600">Cost Price</th>
@@ -287,19 +288,34 @@ function toggleVariants() {
     }
 }
 
-function addVariantRow(name, sku, price, costPrice, stock, id) {
+function addVariantRow(name, sku, price, costPrice, stock, id, image) {
     id = id || '';
     name = name || '';
     sku = sku || '';
     price = price || '';
     costPrice = costPrice || '';
     stock = stock || 0;
+    image = image || '';
     variantRowId++;
     var rid = variantRowId;
     var tr = document.createElement('tr');
     tr.className = 'border-b border-gray-100 hover:bg-gray-50/50';
     tr.dataset.variantId = id;
+    var imgHtml = '';
+    if (image) {
+        imgHtml = '<div class="variant-img-preview relative" id="vimg_'+rid+'">'
+            + '<img src="'+image+'" class="w-10 h-10 rounded-lg object-cover border border-gray-200">'
+            + '<button type="button" onclick="removeVariantImage('+rid+')" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center leading-none">&times;</button>'
+            + '</div>';
+    } else {
+        imgHtml = '<div class="variant-img-preview" id="vimg_'+rid+'">'
+            + '<label class="cursor-pointer inline-flex items-center justify-center w-10 h-10 rounded-lg border-2 border-dashed border-gray-300 hover:border-amber-400 text-gray-400 hover:text-amber-500 transition-colors">'
+            + '<input type="file" name="variant_image[]" accept="image/*" class="hidden" onchange="previewVariantImage(this,'+rid+')">'
+            + '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>'
+            + '</label></div>';
+    }
     tr.innerHTML = '<td class="px-3 py-2"><input type="text" name="variant_name[]" value="' + name.replace(/"/g, '&quot;') + '" placeholder="e.g. Small, Red, 500g" class="w-full px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 min-w-[120px]"></td>'
+        + '<td class="px-3 py-2">' + imgHtml + '<input type="hidden" name="variant_existing_image[]" value="' + image + '"></td>'
         + '<td class="px-3 py-2"><input type="text" name="variant_sku[]" value="' + sku.replace(/"/g, '&quot;') + '" placeholder="Auto" class="w-full px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 min-w-[100px]"></td>'
         + '<td class="px-3 py-2"><input type="number" name="variant_price[]" value="' + price + '" step="0.01" placeholder="0.00" class="w-full px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 min-w-[90px]"></td>'
         + '<td class="px-3 py-2"><input type="number" name="variant_cost_price[]" value="' + costPrice + '" step="0.01" placeholder="0.00" class="w-full px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 min-w-[90px]"></td>'
@@ -309,10 +325,35 @@ function addVariantRow(name, sku, price, costPrice, stock, id) {
     lucide.createIcons();
 }
 
+function previewVariantImage(input, rid) {
+    if (input.files && input.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var container = document.getElementById('vimg_'+rid);
+            container.innerHTML = '<img src="'+e.target.result+'" class="w-10 h-10 rounded-lg object-cover border border-gray-200">'
+                + '<button type="button" onclick="removeVariantImage('+rid+')" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center leading-none">&times;</button>';
+            container.classList.add('relative');
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function removeVariantImage(rid) {
+    var container = document.getElementById('vimg_'+rid);
+    container.classList.remove('relative');
+    container.innerHTML = '<label class="cursor-pointer inline-flex items-center justify-center w-10 h-10 rounded-lg border-2 border-dashed border-gray-300 hover:border-amber-400 text-gray-400 hover:text-amber-500 transition-colors">'
+        + '<input type="file" name="variant_image[]" accept="image/*" class="hidden" onchange="previewVariantImage(this,'+rid+')">'
+        + '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>'
+        + '</label>';
+    // Also clear the hidden field for existing image
+    var hiddenInput = container.closest('td').querySelector('input[name="variant_existing_image[]"]');
+    if (hiddenInput) hiddenInput.value = '';
+}
+
 // Load existing variants on edit
 <?php if (!empty($existingVariants)): ?>
 <?php foreach ($existingVariants as $v): ?>
-addVariantRow("<?= e($v['variant_name']) ?>", "<?= e($v['sku'] ?? '') ?>", "<?= e($v['price'] ?? '') ?>", "<?= e($v['cost_price'] ?? '') ?>", "<?= (int)($v['stock_quantity'] ?? 0) ?>", "<?= $v['id'] ?>");
+addVariantRow("<?= e($v['variant_name']) ?>", "<?= e($v['sku'] ?? '') ?>", "<?= e($v['price'] ?? '') ?>", "<?= e($v['cost_price'] ?? '') ?>", "<?= (int)($v['stock_quantity'] ?? 0) ?>", "<?= $v['id'] ?>", "<?= e($v['image'] ?? '') ?>");
 <?php endforeach; ?>
 <?php endif; ?>
 

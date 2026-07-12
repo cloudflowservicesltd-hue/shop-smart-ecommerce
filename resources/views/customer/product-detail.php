@@ -134,13 +134,17 @@ if ($hasVariants) {
                         $vStock = (int)($v['stock_quantity'] ?? 0);
                         $vOutOfStock = $vStock <= 0;
                     ?>
-                    <button type="button" onclick="selectVariant(<?= $v['id'] ?>, <?= $vPrice ?>, <?= $vStock ?>, '<?= e(addslashes($v['variant_name'])) ?>')"
+                    <button type="button" onclick="selectVariant(<?= $v['id'] ?>, <?= $vPrice ?>, <?= $vStock ?>, '<?= e(addslashes($v['variant_name'])) ?>', '<?= e($v['image'] ?? '') ?>')"
                         class="variant-btn px-4 py-2.5 rounded-xl border-2 text-sm font-medium transition-all <?= $vOutOfStock ? 'border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50' : 'border-gray-200 text-gray-700 hover:border-amber-400 hover:text-amber-700' ?> <?= $vi === 0 && !$vOutOfStock ? 'border-amber-500 text-amber-700 bg-amber-50' : '' ?>"
                         data-variant-id="<?= $v['id'] ?>"
                         data-price="<?= $vPrice ?>"
                         data-stock="<?= $vStock ?>"
+                        data-image="<?= e($v['image'] ?? '') ?>"
                         <?= $vOutOfStock ? 'disabled' : '' ?>
                         id="vbtn_<?= $v['id'] ?>">
+                        <?php if (!empty($v['image'])): ?>
+                        <img src="<?= e($v['image']) ?>" alt="<?= e($v['variant_name']) ?>" class="w-8 h-8 rounded-lg object-cover mx-auto mb-1 border border-gray-200">
+                        <?php endif; ?>
                         <?= e($v['variant_name']) ?>
                         <?php if ($vPrice != $finalPrice): ?>
                         <span class="block text-xs opacity-70"><?= formatMoney($vPrice) ?></span>
@@ -617,7 +621,7 @@ var hasVariants = <?= $hasVariants ? 'true' : 'false' ?>;
 var selectedVariantId = 0;
 var selectedVariantStock = 0;
 
-function selectVariant(id, price, stock, name) {
+function selectVariant(id, price, stock, name, image) {
     selectedVariantId = id;
     selectedVariantStock = stock;
     document.getElementById('selectedVariantName').textContent = name;
@@ -628,6 +632,15 @@ function selectVariant(id, price, stock, name) {
     if (parseInt(document.getElementById('qty').value) > stock) document.getElementById('qty').value = Math.max(1, stock);
     document.getElementById('qtyHidden').value = document.getElementById('qty').value;
     document.getElementById('variantStockInfo').textContent = stock + ' available';
+    // Swap main product image if variant has its own image
+    if (image) {
+        var mainImg = document.getElementById('mainImage');
+        if (mainImg) mainImg.src = image;
+    } else {
+        // Revert to primary product image
+        var mainImg = document.getElementById('mainImage');
+        if (mainImg) mainImg.src = '<?= e($primaryImage) ?>';
+    }
     // Highlight selected button
     document.querySelectorAll('.variant-btn').forEach(function(btn) {
         btn.classList.remove('border-amber-500', 'text-amber-700', 'bg-amber-50');

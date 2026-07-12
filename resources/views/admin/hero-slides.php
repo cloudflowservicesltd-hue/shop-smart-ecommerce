@@ -74,7 +74,7 @@
                         </td>
                         <td class="px-4 py-3 text-right">
                             <div class="flex items-center justify-end gap-1">
-                                <button onclick='openSlideForm(<?= json_encode($slide) ?>)' class="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Edit">
+                                <button onclick="openSlideForm(this)" data-slide='<?= htmlspecialchars(json_encode($slide), ENT_QUOTES, 'UTF-8') ?>' class="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Edit">
                                     <i data-lucide="pencil" class="w-4 h-4"></i>
                                 </button>
                                 <button onclick="confirmDelete(<?= $slide['id'] ?>, '<?= e(addslashes($slide['title'])) ?>')" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
@@ -259,12 +259,20 @@
 <script>
 lucide.createIcons();
 
-function openSlideForm(data) {
+function openSlideForm(btnOrData) {
     const modal = document.getElementById('slideModal');
     const title = document.getElementById('slideModalTitle');
     const submitText = document.getElementById('slideSubmitText');
     const form = document.getElementById('slideForm');
-    
+
+    // If called with a button element (from edit click), parse data from data-slide attribute
+    var data = null;
+    if (btnOrData && btnOrData.nodeType === 1) {
+        try { data = JSON.parse(btnOrData.getAttribute('data-slide')); } catch(e) { data = null; }
+    } else {
+        data = btnOrData;
+    }
+
     if (data) {
         title.textContent = 'Edit Hero Slide';
         submitText.textContent = 'Update Slide';
@@ -282,6 +290,8 @@ function openSlideForm(data) {
         document.getElementById('slideSortOrder').value = data.sort_order || 1;
         form.querySelector('[name=is_active]').checked = data.is_active == 1;
         form.action = '/admin/hero-slides/edit/' + data.id;
+        // Reset file input so old file selection doesn't carry over
+        document.getElementById('slideImageFile').value = '';
         // Show current image preview
         var previewArea = document.getElementById('imagePreviewArea');
         if (data.image_url) {

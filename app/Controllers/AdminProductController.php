@@ -311,6 +311,12 @@ class AdminProductController extends BaseController
     private function saveVariants(int $productId): void
     {
         // Always delete existing variants and re-insert (simpler than tracking adds/edits/deletes)
+        // But first, collect existing variant images for cleanup (if replaced)
+        $oldVariants = Database::select("SELECT id, image FROM product_variants WHERE product_id = ?", [$productId]);
+        $oldImages = [];
+        foreach ($oldVariants as $ov) {
+            if (!empty($ov['image'])) $oldImages[$ov['id']] = $ov['image'];
+        }
         Database::delete('product_variants', 'product_id = ?', [$productId]);
 
         $names = Request::post('variant_name', []);
@@ -320,6 +326,12 @@ class AdminProductController extends BaseController
         $prices = Request::post('variant_price', []);
         $costPrices = Request::post('variant_cost_price', []);
         $stocks = Request::post('variant_stock', []);
+        $existingImages = Request::post('variant_existing_image', []);
+        $variantFiles = $_FILES['variant_image'] ?? null;
+
+        $config = require ROOT_PATH . '/config/app.php';
+        $uploadDir = ROOT_PATH . '/public/uploads/variants/';
+        if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
 
         foreach ($names as $i => $name) {
             $name = trim($name);
@@ -333,6 +345,28 @@ class AdminProductController extends BaseController
             $costPrice = !empty($costPrices[$i]) ? (float)$costPrices[$i] : 0;
             $stock = (int)($stocks[$i] ?? 0);
 
+            // Handle variant image upload
+            $variantImage = null;
+            if ($variantFiles && isset($variantFiles['name'][$i]) && $variantFiles['error'][$i] === UPLOAD_ERR_OK) {
+                $file = [
+                    'name' => $variantFiles['name'][$i],
+                    'type' => $variantFiles['type'][$i],
+                    'tmp_name' => $variantFiles['tmp_name'][$i],
+                    'error' => $variantFiles['error'][$i],
+                    'size' => $variantFiles['size'][$i],
+                ];
+                $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                if (in_array($ext, $config['upload']['allowed_types']) && $file['size'] <= $config['upload']['max_size']) {
+                    $filename = uniqid() . '_' . time() . '.' . $ext;
+                    if (move_uploaded_file($file['tmp_name'], $uploadDir . $filename)) {
+                        $variantImage = '/uploads/variants/' . $filename;
+                    }
+                }
+            } elseif (!empty($existingImages[$i])) {
+                // Keep existing image if no new file uploaded
+                $variantImage = $existingImages[$i];
+            }
+
             Database::insert('product_variants', [
                 'product_id' => $productId,
                 'variant_name' => $name,
@@ -340,6 +374,7 @@ class AdminProductController extends BaseController
                 'price' => $price,
                 'cost_price' => $costPrice,
                 'stock_quantity' => $stock,
+                'image' => $variantImage,
                 'is_active' => 1,
                 'sort_order' => $i,
                 'created_at' => date('Y-m-d H:i:s'),

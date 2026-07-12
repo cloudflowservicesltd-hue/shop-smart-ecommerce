@@ -145,6 +145,7 @@ try {
     try { $db->exec("ALTER TABLE `product_variants` ADD COLUMN `weight` DECIMAL(12,2) DEFAULT NULL AFTER `barcode`"); } catch (\Throwable $e) {}
     try { $db->exec("ALTER TABLE `product_variants` ADD COLUMN `is_active` TINYINT(1) NOT NULL DEFAULT 1 AFTER `stock_quantity`"); } catch (\Throwable $e) {}
     try { $db->exec("ALTER TABLE `product_variants` ADD COLUMN `sort_order` INT NOT NULL DEFAULT 0 AFTER `is_active`"); } catch (\Throwable $e) {}
+    try { $db->exec("ALTER TABLE `product_variants` ADD COLUMN `image` VARCHAR(255) DEFAULT NULL AFTER `sort_order`"); } catch (\Throwable $e) {}
     // ── Cart: add variant_id ──
     try { $db->exec("ALTER TABLE `cart` ADD COLUMN `variant_id` INT UNSIGNED DEFAULT NULL AFTER `product_id`"); } catch (\Throwable $e) {}
     // ── Order Items: add variant_name ──
