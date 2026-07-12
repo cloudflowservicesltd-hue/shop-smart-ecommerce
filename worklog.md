@@ -449,3 +449,24 @@ Stage Summary:
 - 9 files changed, 341 insertions, 33 deletions
 - Full variant flow: admin create → product page select → cart → checkout → order
 - Pushed as commit e41cca8
+---
+Task ID: 1
+Agent: Main
+Task: Fix hero slide edit button, image save, and add variant image upload
+
+Work Log:
+- Diagnosed hero slide edit button: `onclick='openSlideForm(<?= json_encode($slide) ?>)'` broke when slide data contained single quotes (e.g. "Men's Collection"), since JSON uses double quotes but the attribute was wrapped in single quotes
+- Fixed by using `data-slide` attribute with `htmlspecialchars(json_encode($slide), ENT_QUOTES, 'UTF-8')` and `JSON.parse` in JS
+- Also reset file input when opening edit form to prevent stale file selection
+- Added `image` column migration to `product_variants` table in routes/web.php
+- Added image upload column to variant table in admin product-form.php with preview/remove functionality
+- Updated `addVariantRow()` JS function with image parameter, `previewVariantImage()` and `removeVariantImage()` helpers
+- Updated `saveVariants()` in AdminProductController to handle `variant_image[]` file uploads
+- Updated customer product-detail.php: variant buttons show image thumbnails, `selectVariant()` swaps main image
+
+Stage Summary:
+- Hero slide edit button now works for all slide data (including single quotes)
+- Hero slide image properly preserved/updated on edit
+- Each product variant can now have its own image (admin upload + customer display)
+- Files modified: hero-slides.php, product-form.php, AdminProductController.php, product-detail.php, routes/web.php
+- Pushed to GitHub: 5408437
