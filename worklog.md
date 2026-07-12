@@ -409,3 +409,43 @@ Stage Summary:
 - Transactional emails (orders, password reset, welcome) no longer carry bulk-mail headers
 - If 550 SPAM persists, root cause is the SMTP username not matching the domain — user needs to create noreply@cloudonehost.top in cPanel
 - Pushed as commit 0b2c27c
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix SMTP 550 SPAM rejection error
+
+Work Log:
+- Analyzed Mailer.php — found `Precedence: bulk` and `X-Auto-Response-Suppress: All` were being added to ALL emails including transactional ones
+- SpamAssassin scores `Precedence: bulk` at +0.6 without a matching `List-Unsubscribe` header — likely pushing emails over the spam threshold
+- Removed `Precedence: bulk` and `X-Auto-Response-Suppress: All` from `sendViaSMTP()` (single sends)
+- Moved `Precedence: bulk` + `List-Unsubscribe` to `sendBulk()` method only (where bulk headers actually belong)
+- Changed `X-Mailer` from empty string to `'ShopSmart Mailer'` (empty X-Mailer looks suspicious to spam filters)
+- Added `X-Sender` and `X-Originating-IP` headers for better SPF alignment on shared hosting
+- Improved error diagnostic message with step-by-step cPanel instructions
+
+Stage Summary:
+- 1 file changed: app/Core/Mailer.php
+- Transactional emails (orders, password reset, welcome) no longer carry bulk-mail headers
+- If 550 SPAM persists, root cause is the SMTP username not matching the domain — user needs to create noreply@cloudonehost.top in cPanel
+- Pushed as commit 0b2c27c
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Add product variable price (variants) feature
+
+Work Log:
+- Added self-heal migrations: expanded product_variants table (cost_price, discount_price, barcode, weight, is_active, sort_order), added variant_id to cart, variant_name to order_items
+- Built admin product form variant UI: toggle switch, dynamic add/remove rows table, variant name/SKU/price/cost/stock fields
+- Added saveVariants() to AdminProductController: delete-all + re-insert pattern, auto-generates SKU, auto-sums variant stock into parent product
+- Product detail page: variant selector buttons, dynamic price update, stock per variant, sold-out variants disabled, auto-select first, form validation
+- CartController: accepts variant_id, checks variant stock, matches cart items by product+variant combo, joins variants table for price/name
+- Cart view: shows variant name as amber badge below product name
+- CheckoutPageController: both createOrder flows save variant_name in order_items, deduct stock from variant, re-sum parent stock
+- Order receipt: shows variant name in parentheses after product name
+
+Stage Summary:
+- 9 files changed, 341 insertions, 33 deletions
+- Full variant flow: admin create → product page select → cart → checkout → order
+- Pushed as commit e41cca8
