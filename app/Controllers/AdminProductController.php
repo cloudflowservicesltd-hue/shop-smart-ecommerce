@@ -238,4 +238,59 @@ class AdminProductController extends BaseController
         Session::flash('success', 'Review deleted');
         Redirect::to('/admin/products/' . $id . '/reviews');
     }
+
+    public function duplicate($id)
+    {
+        $product = Database::selectOne("SELECT * FROM products WHERE id = ?", [$id]);
+        if (!$product) { Session::flash('error', 'Product not found'); Redirect::to('/admin/products'); return; }
+
+        $name = $product['name'] . ' (Copy)';
+        $slug = strtolower(preg_replace('/[^a-z0-9]+/', '-', $name)) . '-' . time();
+
+        // Copy product data (exclude id, slug, created_at, updated_at, sku, barcode)
+        $sku = 'SKU-' . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 8));
+        $barcode = 'BC-' . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 10));
+
+        $data = [
+            'name'              => $name,
+            'slug'              => $slug,
+            'short_description' => $product['short_description'] ?? '',
+            'description'       => $product['description'] ?? '',
+            'category_id'       => $product['category_id'],
+            'brand_id'          => $product['brand_id'],
+            'price'             => $product['price'],
+            'cost_price'        => $product['cost_price'] ?? 0,
+            'discount_price'    => $product['discount_price'],
+            'stock_quantity'    => 0,
+            'low_stock_threshold' => $product['low_stock_threshold'] ?? 10,
+            'sku'               => $sku,
+            'barcode'           => $barcode,
+            'weight'            => $product['weight'],
+            'supplier'          => $product['supplier'] ?? '',
+            'product_status'    => 'draft',
+            'is_active'         => 0,
+            'is_featured'       => 0,
+            'meta_title'        => $product['meta_title'] ?? '',
+            'meta_description'  => $product['meta_description'] ?? '',
+            'created_at'        => date('Y-m-d H:i:s'),
+            'updated_at'        => date('Y-m-d H:i:s'),
+        ];
+
+        $newId = Database::insert('products', $data);
+
+        // Copy images
+        $images = Database::select("SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order ASC", [$id]);
+        foreach ($images as $img) {
+            Database::insert('product_images', [
+                'product_id'  => $newId,
+                'image_path'  => $img['image_path'],
+                'is_primary'  => $img['is_primary'],
+                'sort_order'  => $img['sort_order'],
+                'created_at'  => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        Session::flash('success', 'Product duplicated successfully. The copy is set to draft status.');
+        Redirect::to('/admin/products/' . $newId . '/edit');
+    }
 }

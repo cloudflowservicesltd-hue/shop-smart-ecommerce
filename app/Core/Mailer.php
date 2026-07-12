@@ -76,9 +76,21 @@ class Mailer
             $mail = self::getInstance();
             $mail->addAddress($to);
             $mail->Subject = $subject;
+
+            // Wrap HTML in proper document structure to avoid spam filters
+            if ($isHtml) {
+                $body = self::wrapHtmlBody($body);
+            }
+
             $mail->Body    = $body;
             $mail->isHTML($isHtml);
             $mail->AltBody = self::htmlToText($body);
+
+            // Anti-spam priority & precedence headers
+            $mail->addCustomHeader('X-Priority', '3');
+            $mail->addCustomHeader('X-MS-Priority', 'Normal');
+            $mail->addCustomHeader('X-Auto-Response-Suppress', 'All');
+            $mail->addCustomHeader('Precedence', 'bulk');
 
             if ($replyTo) {
                 $mail->addReplyTo($replyTo);
@@ -182,7 +194,13 @@ class Mailer
                 try {
                     $mail = self::getInstance();
                     $mail->Subject = $subject;
-                    $mail->Body    = $body;
+
+                    // Wrap HTML in proper document structure
+                    if ($isHtml) {
+                        $mail->Body = self::wrapHtmlBody($body);
+                    } else {
+                        $mail->Body = $body;
+                    }
                     $mail->isHTML($isHtml);
                     $mail->AltBody = self::htmlToText($body);
 
@@ -590,9 +608,10 @@ class Mailer
         $mail->Timeout     = 15;  // 15 seconds — don't hang too long
         $mail->CharSet     = 'UTF-8';
 
-        // Anti-spam: set proper X-Mailer and Message-ID
-        $mail->XMailer  = 'ShopSmart E-Commerce';
-        $mail->MessageID = '<' . md5(uniqid(microtime(true), true)) . '@' . ($_SERVER['HTTP_HOST'] ?? 'shopsmart.co.ke') . '>';
+        // ── Anti-spam headers ──
+        $mail->XMailer  = '';
+        $domain = parse_url('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'), PHP_URL_HOST) ?: 'localhost';
+        $mail->MessageID = '<' . bin2hex(random_bytes(16)) . '@' . $domain . '>';
 
         // Disable SSL peer verification (shared hosting friendly)
         $mail->SMTPOptions = [
@@ -669,11 +688,43 @@ class Mailer
     }
 
     /**
+     * Wrap partial HTML fragments in a proper email document structure.
+     * Many spam filters reject emails that are not well-formed HTML documents.
+     */
+    private static function wrapHtmlBody(string $html): string
+    {
+        // If already a full document, return as-is
+        if (stripos($html, '<!DOCTYPE') !== false || stripos($html, '<html') !== false) {
+            return $html;
+        }
+
+        $storeName = htmlspecialchars(self::getResolvedConfig()['from_name'] ?: 'ShopSmart', ENT_QUOTES, 'UTF-8');
+        $domain = parse_url('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'), PHP_URL_HOST) ?: 'localhost';
+
+        return "<!DOCTYPE html>\n"
+            . "<html lang=\"en\" xmlns=\"http://www.w3.org/1999/xhtml\">\n"
+            . "<head>\n"
+            . "  <meta charset=\"UTF-8\">\n"
+            . "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+            . "  <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n"
+            . "  <title>" . $storeName . "</title>\n"
+            . "</head>\n"
+            . "<body style=\"margin:0;padding:0;background-color:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;\">\n"
+            . $html
+            . "\n</body>\n</html>";
+    }
+
+    /**
      * Convert HTML to plain text (basic).
      */
     private static function htmlToText(string $html): string
     {
-        $text = strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>', '</div>', '</h1>', '</h2>', '</h3>', '</h4>', '</li>'], "\n", $html));
+        // Strip DOCTYPE, html, head, style, script tags and their content
+        $text = preg_replace('/<(?:!DOCTYPE|html|head|body)[^>]*>/i', '', $html);
+        $text = preg_replace('/<head[^>]*>.*?<\/head>/is', '', $text);
+        $text = preg_replace('/<style[^>]*>.*?<\/style>/is', '', $text);
+        $text = preg_replace('/<script[^>]*>.*?<\/script>/is', '', $text);
+        $text = strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>', '</div>', '</h1>', '</h2>', '</h3>', '</h4>', '</li>'], "\n", $text));
         // Collapse multiple newlines
         $text = preg_replace('/\n{3,}/', "\n\n", $text);
         return trim($text);

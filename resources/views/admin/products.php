@@ -172,6 +172,10 @@ $statusCounts = [
                                     <i data-lucide="message-square" class="w-4 h-4"></i>
                                 </a>
                                 <a href="/admin/products/<?= $p['id'] ?>/edit" class="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><i data-lucide="pencil" class="w-4 h-4"></i></a>
+                                <form method="POST" action="/admin/products/<?= $p['id'] ?>/duplicate" onsubmit="return confirm('Duplicate this product?')">
+                                    <?= csrf() ?>
+                                    <button type="submit" class="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Duplicate"><i data-lucide="copy" class="w-4 h-4"></i></button>
+                                </form>
                                 <form method="POST" action="/admin/products/<?= $p['id'] ?>/delete" onsubmit="return confirm('Delete this product?')">
                                     <?= csrf() ?>
                                     <button class="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>

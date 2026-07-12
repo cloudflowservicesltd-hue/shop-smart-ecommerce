@@ -416,6 +416,7 @@ $router->group(['prefix' => 'admin', 'middleware' => 'admin'], function($router)
     $router->get('/products/{id}/edit', 'AdminProductController@edit');
     $router->post('/products/{id}/update', 'AdminProductController@update');
     $router->post('/products/{id}/delete', 'AdminProductController@delete');
+    $router->post('/products/{id}/duplicate', 'AdminProductController@duplicate');
     $router->post('/products/{id}/delete-image/{imageId}', 'AdminProductController@deleteImage');
     $router->get('/products/{id}/reviews', 'AdminProductController@reviews');
     $router->post('/products/{id}/reviews/{reviewId}/approve', 'AdminProductController@approveReview');
